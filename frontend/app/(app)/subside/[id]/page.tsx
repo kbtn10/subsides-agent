@@ -147,13 +147,23 @@ export default function SubsideDetailPage() {
           </p>
         )}
 
-        {/* Le pont vers l'étage 3 : préparer sa candidature (jamais soumettre). */}
-        <div className="mt-4">
-          <Button onClick={preparerCandidature} disabled={prepare}>
-            {prepare ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardList className="h-4 w-4" />}
-            Préparer ma candidature
-          </Button>
-        </div>
+        {/* Le pont vers l'étage 3 : préparer sa candidature (jamais soumettre).
+            Masqué quand on regarde le subside DEPUIS une recherche : une
+            candidature n'appartient qu'au profil principal (lot 8.1). */}
+        {m.profil_type === "recherche" ? (
+          <p title="Disponible depuis votre profil principal"
+            className="mt-4 inline-flex items-center gap-2 rounded-[var(--radius-ctrl)] border border-border bg-surface-2 px-3 py-2 text-sm text-ink-soft">
+            <ClipboardList className="h-4 w-4 shrink-0" aria-hidden />
+            Préparer une candidature se fait depuis votre profil principal.
+          </p>
+        ) : (
+          <div className="mt-4">
+            <Button onClick={preparerCandidature} disabled={prepare}>
+              {prepare ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardList className="h-4 w-4" />}
+              Préparer ma candidature
+            </Button>
+          </div>
+        )}
       </header>
 
       {/* Deux colonnes sur grand écran : l'analyse et la fiche à gauche, une

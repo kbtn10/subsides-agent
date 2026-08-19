@@ -5,7 +5,8 @@ import { API_URL } from "./constants";
 import type {
   Candidature, CandidatureDetail, CandidatureStats, ChecklistEtat, ChecklistItem,
   Conformite, DashboardData, DerniereMaj, JobStatus, Matching, MatchingDetail,
-  Profil, ProfilInput, Resume, ScrapeRun, Source, SourceSante, StatutCandidature,
+  Profil, ProfilInput, Recherche, Resume, ScrapeRun, Source, SourceSante,
+  StatutCandidature,
 } from "./types";
 
 // getToken vient du hook Clerk useAuth() — on l'injecte pour rester testable
@@ -69,6 +70,17 @@ export const api = {
   rechercheLibre: (body: ProfilInput, getToken?: GetToken) =>
     req<{ profil_id: number; job_id: string; ephemere: boolean }>(
       "/matching/recherche", { method: "POST", body, getToken }),
+
+  // --- Recherches sauvegardées (lot 8.1) ---
+  mesRecherches: (getToken?: GetToken) =>
+    req<{ recherches: Recherche[]; max: number }>("/recherches", { getToken }),
+
+  sauvegarderRecherche: (profilId: number, nom: string, getToken?: GetToken) =>
+    req<Profil>(`/recherches/${profilId}/sauvegarder`, {
+      method: "POST", body: { nom }, getToken }),
+
+  renommerRecherche: (profilId: number, nom: string, getToken?: GetToken) =>
+    req<Profil>(`/recherches/${profilId}`, { method: "PUT", body: { nom }, getToken }),
 
   statutMatching: (jobId: string, getToken?: GetToken) =>
     req<JobStatus>(`/matching/status/${jobId}`, { getToken }),

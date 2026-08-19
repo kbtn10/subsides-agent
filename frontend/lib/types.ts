@@ -22,7 +22,26 @@ export interface Profil {
   agrements: string[];
   description_libre: string | null;
   ephemere: boolean;
+  type: TypeProfil;
+  nom_recherche: string | null;
   profil_hash: string;
+  cree_le: string;
+  modifie_le: string;
+}
+
+// Nature du profil (lot 8.1). Voir profils.TYPES_PROFIL côté backend.
+export type TypeProfil = "principal" | "recherche" | "ephemere";
+
+// Une recherche libre sauvegardée, telle que listée dans « Mes recherches ».
+export interface Recherche {
+  id: number;
+  nom_recherche: string;
+  commune_siege: string;
+  region: string;
+  secteurs: string[];
+  description_libre: string | null;
+  correspondances: number;
+  total_analyses: number;
   cree_le: string;
   modifie_le: string;
 }
@@ -110,11 +129,13 @@ export interface SubsideDetail extends SubsideResume {
 export interface MatchingDetail extends Omit<Matching, "subside"> {
   subside: SubsideDetail;
   recurrence?: Recurrence | null;   // lot 7 : appel annuel récurrent détecté
+  profil_type?: TypeProfil;         // lot 8.1 : masque « Préparer » sur une recherche
 }
 
 // Tout le dashboard en un appel (perf : pas un appel par carte).
 export interface DashboardData {
-  profil: { id: number; nom: string; commune_siege: string };
+  profil: { id: number; nom: string; commune_siege: string;
+    type?: TypeProfil; nom_recherche?: string | null };
   resume: Resume;
   matchings: Matching[];
   derniere_maj: string | null;

@@ -40,6 +40,9 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 log = logging.getLogger("main")
 STATIC = Path(__file__).parent / "static"
 
+# Lot 8.1 : plafond de recherches sauvegardées par user (garde-fou anti-abus).
+MAX_RECHERCHES_PAR_USER = int(os.getenv("MAX_RECHERCHES_PAR_USER", "10"))
+
 
 def _erreurs_pydantic(e: ValidationError):
     """pydantic v2 .errors() peut contenir un ctx non sérialisable en JSON
@@ -288,6 +291,51 @@ async def supprimer_profil(profil_id: int, user: dict | None = Depends(utilisate
     return {"supprime": True}
 
 
+# ==================== Recherches sauvegardées (lot 8.1) ====================
+# Une recherche sauvegardée est un profil type='recherche'. Elle réutilise le
+# cloisonnement, le matching, la veille et la suppression cascade des profils —
+# seuls la création (transformation) et la liste enrichie sont spécifiques.
+
+@app.get("/recherches")
+async def lister_recherches(user: dict | None = Depends(utilisateur_optionnel)):
+    """« Mes recherches » : les hypothèses sauvegardées de l'utilisateur."""
+    return {"recherches": profils.lister_recherches(user["id"] if user else None),
+            "max": MAX_RECHERCHES_PAR_USER}
+
+
+@app.post("/recherches/{profil_id}/sauvegarder")
+async def sauvegarder_recherche(profil_id: int, body: dict = Body(default={}),
+                                user: dict | None = Depends(utilisateur_optionnel)):
+    """Transforme une recherche éphémère en recherche sauvegardée (nommée)."""
+    _verifier_proprietaire(user, profil_id)
+    p = profils.get_profil(profil_id)
+    if p is None:
+        raise HTTPException(status_code=404, detail="recherche inconnue")
+    # Le plafond ne compte que les recherches DÉJÀ sauvegardées : re-sauvegarder
+    # (renommer) une recherche existante ne doit jamais buter dessus.
+    if p["type"] != "recherche" and user is not None:
+        if profils.compter_recherches(user["id"]) >= MAX_RECHERCHES_PAR_USER:
+            raise HTTPException(
+                status_code=409,
+                detail="Supprimez une recherche pour en sauvegarder une nouvelle "
+                       f"(maximum {MAX_RECHERCHES_PAR_USER}).")
+    r = profils.sauvegarder_recherche(profil_id, body.get("nom") or "")
+    if r is None:
+        raise HTTPException(status_code=404, detail="recherche inconnue")
+    return r
+
+
+@app.put("/recherches/{profil_id}")
+async def renommer_recherche(profil_id: int, body: dict = Body(...),
+                             user: dict | None = Depends(utilisateur_optionnel)):
+    """Renomme une recherche sauvegardée."""
+    _verifier_proprietaire(user, profil_id)
+    r = profils.renommer_recherche(profil_id, body.get("nom") or "")
+    if r is None:
+        raise HTTPException(status_code=404, detail="recherche inconnue")
+    return r
+
+
 # ==================== Matching (lot 3) ====================
 
 # ATTENTION à l'ordre : FastAPI teste les routes dans l'ordre de déclaration.
@@ -361,6 +409,10 @@ async def matching_detail(matching_id: int, user: dict | None = Depends(utilisat
     if m is None:
         raise HTTPException(status_code=404, detail="correspondance inconnue")
     _verifier_proprietaire(user, m["profil_id"])
+    # Nature du profil : sur une recherche sauvegardée/éphémère, le front masque
+    # « Préparer ma candidature » (les candidatures vivent sur le principal).
+    p = profils.get_profil(m["profil_id"])
+    m["profil_type"] = p["type"] if p else "principal"
     # Récurrence annuelle (lot 7) : « cet appel semble récurrent (édition X) ».
     if m.get("subside"):
         m["recurrence"] = cand_mod.detecter_recurrence(m["subside"])
@@ -516,7 +568,8 @@ async def dashboard_agrege(profil_id: int, user: dict | None = Depends(utilisate
         raise HTTPException(status_code=404, detail="profil inconnu")
     run = db.dernier_scrape_run()
     return {
-        "profil": {"id": p["id"], "nom": p["nom"], "commune_siege": p["commune_siege"]},
+        "profil": {"id": p["id"], "nom": p["nom"], "commune_siege": p["commune_siege"],
+                   "type": p["type"], "nom_recherche": p["nom_recherche"]},
         "resume": matching.resume_profil(profil_id),
         "matchings": matching.resultats(profil_id),
         "derniere_maj": run["fin"] if run else None,

@@ -100,7 +100,9 @@ function OnboardingInner() {
   const dir = reduce ? 0 : 1;
 
   return (
-    <div className="py-6">
+    // Pas de padding vertical propre : le shell (app) fournit déjà le pt-6, un
+    // py-6 en plus enfonçait ce titre plus bas que ceux des autres pages.
+    <div>
       <div className="mb-8">
         <h1 className="font-display text-3xl font-semibold text-ink">
           {editMode ? "Modifier votre profil" : "Parlez-nous de votre association"}

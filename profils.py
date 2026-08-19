@@ -12,7 +12,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 import db
 
@@ -28,6 +28,8 @@ LANGUES_VALIDES = ["fr", "nl", "bilingue"]
 # Lot 6 : régions couvertes (ASBL francophones). La région du siège pilote les
 # zones de subsides éligibles au matching (voir matching.zones_eligibles).
 REGIONS_VALIDES = ["bruxelles", "wallonie"]
+# Lot 8.1 : nature du profil (voir la migration db._migrer_tables_lot3).
+TYPES_PROFIL = ["principal", "recherche", "ephemere"]
 
 COMMUNES_19 = [
     "Anderlecht", "Auderghem", "Berchem-Sainte-Agathe", "Bruxelles-Ville",
@@ -57,6 +59,9 @@ class Profil(BaseModel):
     agrements: list[str] = Field(default_factory=list)
     description_libre: Optional[str] = None
     ephemere: bool = False
+    # `type` est la source de vérité ; `ephemere` en est un miroir (compat).
+    type: Optional[str] = None
+    nom_recherche: Optional[str] = None
 
     @field_validator("nom", "commune_siege")
     @classmethod
@@ -118,6 +123,26 @@ class Profil(BaseModel):
             return None
         v = v.strip()
         return v[:2000] if v else None
+
+    @model_validator(mode="after")
+    def _reconcilier_type(self):
+        """`type` et `ephemere` doivent toujours concorder.
+
+        Si `type` est fourni, il fait foi (ephemere en découle). Sinon on le
+        déduit de l'ancien booléen `ephemere` — ainsi le code et les bases
+        d'avant le lot 8.1 continuent de marcher sans y penser.
+        """
+        t = (self.type or "").strip().lower()
+        if t not in TYPES_PROFIL:
+            t = "ephemere" if self.ephemere else "principal"
+        self.type = t
+        self.ephemere = (t == "ephemere")
+        # Un nom de recherche n'a de sens que pour une recherche sauvegardée.
+        if t != "recherche":
+            self.nom_recherche = None
+        else:
+            self.nom_recherche = (self.nom_recherche or "").strip()[:200] or None
+        return self
 
 
 def calcul_profil_hash(p: dict) -> str:
@@ -197,6 +222,9 @@ def _row_to_profil(row) -> dict:
             d[champ] = []
     d["ephemere"] = bool(d.get("ephemere"))
     d["region"] = d.get("region") or "bruxelles"   # bases d'avant le lot 6
+    # bases d'avant le lot 8.1 : déduire le type du booléen ephemere
+    d["type"] = d.get("type") or ("ephemere" if d["ephemere"] else "principal")
+    d["nom_recherche"] = d.get("nom_recherche")
     return d
 
 
@@ -209,12 +237,12 @@ def creer_profil(user_id, data: dict) -> dict:
     cur = conn.execute(
         """INSERT INTO profils (user_id, nom, commune_siege, region, langue, secteurs,
              publics_cibles, budget_categorie, agrements, description_libre,
-             ephemere, profil_hash, cree_le, modifie_le)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+             ephemere, type, nom_recherche, profil_hash, cree_le, modifie_le)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (user_id, p["nom"], p["commune_siege"], p["region"], p["langue"],
          _dumps(p["secteurs"]), _dumps(p["publics_cibles"]), p["budget_categorie"],
-         _dumps(p["agrements"]), p["description_libre"], int(p["ephemere"]), ph,
-         maintenant, maintenant),
+         _dumps(p["agrements"]), p["description_libre"], int(p["ephemere"]),
+         p["type"], p["nom_recherche"], ph, maintenant, maintenant),
     )
     conn.commit()
     return get_profil(cur.lastrowid)
@@ -226,13 +254,19 @@ def get_profil(profil_id) -> Optional[dict]:
 
 
 def lister_profils(user_id=None, inclure_ephemeres=False) -> list[dict]:
+    """Par défaut : uniquement les profils PRINCIPAUX.
+
+    Depuis le lot 8.1 les recherches sauvegardées ont ephemere=0 (elles ne sont
+    pas purgées) : filtrer sur ephemere=0 les laissait fuiter dans la résolution
+    du « profil de mon ASBL » (compte, édition, dashboard). On filtre donc sur
+    type='principal'. `inclure_ephemeres=True` lève tout filtre de type."""
     conn = db.connect()
     sql, params = "SELECT * FROM profils", []
     where = []
     if user_id is not None:
         where.append("user_id = ?"); params.append(user_id)
     if not inclure_ephemeres:
-        where.append("ephemere = 0")
+        where.append("type = 'principal'")
     if where:
         sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY modifie_le DESC"
@@ -250,10 +284,11 @@ def maj_profil(profil_id, data: dict) -> Optional[dict]:
     db.connect().execute(
         """UPDATE profils SET nom=?, commune_siege=?, region=?, langue=?, secteurs=?,
              publics_cibles=?, budget_categorie=?, agrements=?, description_libre=?,
-             ephemere=?, profil_hash=?, modifie_le=? WHERE id=?""",
+             ephemere=?, type=?, nom_recherche=?, profil_hash=?, modifie_le=? WHERE id=?""",
         (p["nom"], p["commune_siege"], p["region"], p["langue"], _dumps(p["secteurs"]),
          _dumps(p["publics_cibles"]), p["budget_categorie"], _dumps(p["agrements"]),
-         p["description_libre"], int(p["ephemere"]), ph, _now(), profil_id),
+         p["description_libre"], int(p["ephemere"]), p["type"], p["nom_recherche"],
+         ph, _now(), profil_id),
     )
     db.connect().commit()
     return get_profil(profil_id)
@@ -269,12 +304,83 @@ def supprimer_profil(profil_id) -> bool:
 
 
 def purge_ephemeres(jours: int = 7) -> int:
-    """Supprime les profils éphémères plus vieux que `jours` (et leurs matchings)."""
+    """Supprime les recherches ÉPHÉMÈRES plus vieilles que `jours` (et leurs
+    matchings). Ne touche JAMAIS les recherches sauvegardées (type='recherche')
+    ni les profils principaux : on filtre sur type='ephemere'."""
     from datetime import timedelta
     limite = (datetime.now(timezone.utc) - timedelta(days=jours)).isoformat(timespec="seconds")
     conn = db.connect()
-    cur = conn.execute("DELETE FROM profils WHERE ephemere = 1 AND cree_le < ?", (limite,))
+    cur = conn.execute("DELETE FROM profils WHERE type = 'ephemere' AND cree_le < ?", (limite,))
     conn.commit()
     if cur.rowcount:
         log.info("Purge : %d profil(s) éphémère(s) > %d jours supprimé(s)", cur.rowcount, jours)
     return cur.rowcount
+
+
+# --- Recherches sauvegardées (lot 8.1) -------------------------------------
+
+def compter_recherches(user_id) -> int:
+    """Nombre de recherches SAUVEGARDÉES d'un user (pour la limite)."""
+    row = db.connect().execute(
+        "SELECT COUNT(*) n FROM profils WHERE user_id = ? AND type = 'recherche'",
+        (user_id,)).fetchone()
+    return row["n"] if row else 0
+
+
+def lister_recherches(user_id) -> list[dict]:
+    """Recherches sauvegardées d'un user, enrichies pour la liste « Mes
+    recherches » : nombre de correspondances au dernier matching + date.
+
+    Import local de `matching` pour éviter une boucle d'import (matching
+    importe profils)."""
+    import matching
+    conn = db.connect()
+    sql = "SELECT * FROM profils WHERE type = 'recherche'"
+    params = []
+    if user_id is not None:
+        sql += " AND user_id = ?"; params.append(user_id)
+    sql += " ORDER BY modifie_le DESC"
+    out = []
+    for r in conn.execute(sql, params).fetchall():
+        p = _row_to_profil(r)
+        resume = matching.resume_profil(p["id"])
+        out.append({
+            "id": p["id"],
+            "nom_recherche": p["nom_recherche"] or p["nom"],
+            "commune_siege": p["commune_siege"],
+            "region": p["region"],
+            "secteurs": p["secteurs"],
+            "description_libre": p["description_libre"],
+            "correspondances": resume["correspondances"],
+            "total_analyses": resume["total_analyses"],
+            "cree_le": p["cree_le"],
+            "modifie_le": p["modifie_le"],
+        })
+    return out
+
+
+def sauvegarder_recherche(profil_id, nom: str) -> Optional[dict]:
+    """Transforme une recherche éphémère en recherche sauvegardée (type=recherche).
+
+    Idempotent sur une recherche déjà sauvegardée (met juste à jour le nom).
+    Renvoie None si le profil n'existe pas. Le hash ne change pas : les
+    jugements déjà en cache restent valides et la veille les reprend."""
+    existant = get_profil(profil_id)
+    if existant is None:
+        return None
+    nom = (nom or "").strip()[:200]
+    if not nom:
+        # Nom par défaut : commune + un mot, plutôt que vide.
+        nom = existant.get("commune_siege") or "Recherche"
+    return maj_profil(profil_id, {"type": "recherche", "nom_recherche": nom})
+
+
+def renommer_recherche(profil_id, nom: str) -> Optional[dict]:
+    """Renomme une recherche sauvegardée. None si absente/non recherche."""
+    existant = get_profil(profil_id)
+    if existant is None or existant.get("type") != "recherche":
+        return None
+    nom = (nom or "").strip()[:200]
+    if not nom:
+        return existant
+    return maj_profil(profil_id, {"nom_recherche": nom})

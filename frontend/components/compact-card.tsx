@@ -62,7 +62,7 @@ export function CompactCard({
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: reduce ? 0 : Math.min(index * 0.08, 0.8) }}
-        className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-border bg-surface-2 px-4 py-3.5"
+        className="flex h-full flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-border bg-surface-2 px-4 py-3.5"
       >
         <div className="min-w-0">
           <p className="truncate font-medium text-ink">{s.titre}</p>
@@ -84,26 +84,32 @@ export function CompactCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut", delay: reduce ? 0 : Math.min(index * 0.08, 0.8) }}
       whileHover={reduce ? undefined : { y: -2 }}
+      className="h-full"
     >
       <Link
         href={`/subside/${m.id}`}
         className={cn(
-          "relative block overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-[var(--shadow-soft)] transition-shadow hover:shadow-[var(--shadow-lift)]",
+          "relative flex h-full flex-col overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-[var(--shadow-soft)] transition-shadow hover:shadow-[var(--shadow-lift)]",
           "before:absolute before:left-0 before:top-0 before:h-full before:w-1",
           barre[m.verdict],
         )}
       >
         <div className="flex items-start justify-between gap-3 pl-1.5">
           {/* Deux lignes max plutôt qu'une troncature sèche : sur 375px, un
-              titre coupé au 3e mot ne dit plus rien. */}
-          <h3 className="line-clamp-2 font-display text-[17px] font-semibold leading-snug text-ink">
+              titre coupé au 3e mot ne dit plus rien. Le min-h réserve TOUJOURS
+              la hauteur de deux lignes : un titre court occupe le même espace
+              qu'un titre long, ce qui aligne les cartes d'une même rangée. */}
+          <h3 title={s.titre}
+            className="line-clamp-2 min-h-[2.75em] font-display text-[17px] font-semibold leading-snug text-ink">
             {s.titre}
           </h3>
           <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold", pastille[m.verdict])}>
             {VERDICT_LABEL[m.verdict]}
           </span>
         </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 pl-1.5 text-[13px] text-ink-soft">
+        {/* mt-auto : la rangée méta est ancrée en bas, alignée d'une carte à
+            l'autre quelle que soit la longueur du titre. */}
+        <div className="mt-auto flex flex-wrap items-center gap-x-2.5 gap-y-1.5 pt-2 pl-1.5 text-[13px] text-ink-soft">
           <span className="truncate">{s.organisme ?? s.source_id}</span>
           <span className="text-ink-faint">·</span>
           <BadgeEcheance deadline={s.deadline} permanent={s.permanent} />

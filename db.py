@@ -327,6 +327,24 @@ def _migrer_tables_lot3(conn):
     if "region" not in cols("profils"):
         conn.execute("ALTER TABLE profils ADD COLUMN region TEXT DEFAULT 'bruxelles'")
         log.info("Migration : colonne 'profils.region' ajoutée")
+    # Lot 8.1 : nature du profil. `type` remplace peu à peu le booléen `ephemere`
+    # (qu'on garde synchronisé pour la compatibilité des endpoints) :
+    #   principal = le profil de MON ASBL (dashboard, échéances, candidatures)
+    #   recherche = une hypothèse SAUVEGARDÉE, jamais purgée, avec veille
+    #   ephemere  = une recherche non sauvegardée, purgée après 7 jours
+    # Colonne AVANT l'index (idx_profil_type), comme la règle du projet l'exige.
+    if "type" not in cols("profils"):
+        conn.execute("ALTER TABLE profils ADD COLUMN type TEXT")
+        # Rétro-classement : les éphémères actuels -> 'ephemere', le reste
+        # (les vrais profils d'ASBL) -> 'principal'. Le hash ne bouge pas.
+        conn.execute(
+            "UPDATE profils SET type = CASE WHEN ephemere = 1 THEN 'ephemere' "
+            "ELSE 'principal' END WHERE type IS NULL")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_profil_type ON profils(type)")
+        log.info("Migration : colonne 'profils.type' ajoutée (+ rétro-classement)")
+    if "nom_recherche" not in cols("profils"):
+        conn.execute("ALTER TABLE profils ADD COLUMN nom_recherche TEXT")
+        log.info("Migration : colonne 'profils.nom_recherche' ajoutée")
 
 
 def _migrer_colonnes(conn):

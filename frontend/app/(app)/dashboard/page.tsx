@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarClock, Clock, Loader2, Radar, RotateCw, Sparkles, UserCog } from "lucide-react";
+import {
+  ArrowLeft, CalendarClock, Clock, FolderSearch, Loader2, Radar, RotateCw,
+  Sparkles, UserCog,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CompactCard } from "@/components/compact-card";
 import { RappelsCandidatures } from "@/components/rappels-candidatures";
@@ -31,9 +34,13 @@ export function fraicheur(iso: string | null): string {
   return `il y a ${Math.floor(h / 24)} j`;
 }
 
-export default function DashboardPage() {
+function DashboardInner() {
   useTitre("Mes subsides");
   const router = useRouter();
+  const params = useSearchParams();
+  // Ouverture d'une recherche sauvegardée : /dashboard?profil=<id>. Sans ce
+  // paramètre, on est sur le profil PRINCIPAL de l'ASBL (comportement normal).
+  const profilParam = params.get("profil");
   const { getToken } = useAuth();
 
   const [phase, setPhase] = useState<Phase>("chargement");
@@ -46,6 +53,8 @@ export default function DashboardPage() {
   const [erreur, setErreur] = useState<string | null>(null);
   const [nonReplie, setNonReplie] = useState(false);
   const [nom, setNom] = useState<string | null>(null);
+  // Contexte « recherche » : nom à afficher dans le bandeau, ou null (principal).
+  const [contexteRecherche, setContexteRecherche] = useState<string | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const vus = useRef<Set<number>>(new Set());
@@ -60,6 +69,8 @@ export default function DashboardPage() {
   const charger = useCallback(async (pid: number) => {
     const d = await api.dashboard(pid, getToken);
     setNom(d.profil?.nom ?? null);
+    setContexteRecherche(d.profil?.type === "recherche"
+      ? (d.profil?.nom_recherche || d.profil?.nom || "Recherche") : null);
     setTotalBase(d.total_subsides);
     setMaj(d.derniere_maj);
     setResume(d.resume);
@@ -118,13 +129,25 @@ export default function DashboardPage() {
   }, [getToken, suivre, charger]);
 
   useEffect(() => {
+    // Bascule principal <-> recherche : on repart d'un état propre pour ne pas
+    // afficher les cartes du contexte précédent le temps du chargement.
+    stopPoll();
     (async () => {
-      // Résout le profil via le cache OU l'API (résilient au localStorage vide).
+      setPhase("chargement"); setResultats([]); vus.current.clear();
+      setContexteRecherche(null);
+      // Un ?profil=<id> valide ouvre une recherche sauvegardée ; sinon on
+      // résout le profil principal via le cache OU l'API (résilient au
+      // localStorage vide). On ne touche jamais au cache depuis une recherche.
       let pid: number | null;
-      try {
-        pid = await resoudreProfilId(getToken);
-      } catch {
-        pid = null;   // API injoignable : on retentera au prochain rendu
+      const paramPid = profilParam && /^\d+$/.test(profilParam) ? Number(profilParam) : null;
+      if (paramPid != null) {
+        pid = paramPid;
+      } else {
+        try {
+          pid = await resoudreProfilId(getToken);
+        } catch {
+          pid = null;   // API injoignable : on retentera au prochain rendu
+        }
       }
       if (pid == null) { router.replace("/onboarding"); return; }
       profilId.current = pid;
@@ -138,8 +161,11 @@ export default function DashboardPage() {
           lancer(pid);
         }
       } catch (e) {
-        // Profil disparu ou appartenant à quelqu'un d'autre : on repart de l'onboarding.
+        // Profil disparu ou appartenant à quelqu'un d'autre.
         if (e instanceof ApiError && (e.status === 404 || e.status === 403)) {
+          // Une recherche périmée renvoie vers « Mes recherches », pas vers
+          // l'onboarding (on ne touche surtout pas au cache du principal).
+          if (paramPid != null) { router.replace("/recherche"); return; }
           oublierProfilCache();
           router.replace("/onboarding");
           return;
@@ -148,8 +174,9 @@ export default function DashboardPage() {
       }
     })();
     return stopPoll;
+    // Re-init quand on bascule entre le principal et une recherche (ou l'inverse).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [profilParam]);
 
   const eligibles = resultats.filter((m) => ELIGIBLE.includes(m.verdict));
   const nonRetenus = resultats.filter((m) => m.verdict === "non_eligible");
@@ -167,9 +194,24 @@ export default function DashboardPage() {
 
   return (
     <div>
+      {/* Bandeau contextuel : on est dans une RECHERCHE, pas le profil principal.
+          Discret, mais toujours là pour ne jamais confondre les deux. */}
+      {contexteRecherche && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-info/25 bg-info-soft px-4 py-2.5">
+          <p className="flex items-center gap-2 text-sm text-info">
+            <FolderSearch className="h-4 w-4 shrink-0" aria-hidden />
+            Recherche : <span className="font-semibold">{contexteRecherche}</span>
+          </p>
+          <Link href="/dashboard"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-info hover:underline">
+            <ArrowLeft className="h-4 w-4" aria-hidden /> Revenir à mes subsides
+          </Link>
+        </div>
+      )}
+
       <header className="mb-6">
         <h1 className="font-display text-3xl font-semibold text-ink">
-          Bonjour{nom ? `, ${nom}` : ""}
+          {contexteRecherche ? contexteRecherche : `Bonjour${nom ? `, ${nom}` : ""}`}
         </h1>
         <p className="mt-1 text-ink-soft">{sousLigne}</p>
       </header>
@@ -181,7 +223,9 @@ export default function DashboardPage() {
         <StatTile texte={fraicheur(maj)} libelle="Données à jour" icon={Clock} teinte="info" />
       </div>
 
-      {pidRappels && <RappelsCandidatures profilId={pidRappels} />}
+      {/* Les rappels de candidatures n'appartiennent qu'au profil principal :
+          une recherche ne crée pas de candidature (lot 8.1). */}
+      {pidRappels && !contexteRecherche && <RappelsCandidatures profilId={pidRappels} />}
 
       {phase === "chargement" && (
         <p className="flex items-center gap-2 text-ink-soft">
@@ -243,7 +287,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-3 min-[1100px]:grid-cols-2 min-[1500px]:grid-cols-3">
         <AnimatePresence>
           {eligibles.map((m, i) => (
-            <motion.div key={m.subside.id} layout>
+            <motion.div key={m.subside.id} layout className="h-full">
               <CompactCard m={m} index={i} />
             </motion.div>
           ))}
@@ -298,10 +342,26 @@ export default function DashboardPage() {
         <Button variant="ghost" onClick={relancer}>
           <RotateCw className="h-4 w-4" /> Relancer l&apos;analyse
         </Button>
-        <Link href="/onboarding?edit=1">
-          <Button variant="ghost"><UserCog className="h-4 w-4" /> Modifier mon profil</Button>
-        </Link>
+        {/* « Modifier mon profil » n'a de sens que sur le profil principal. */}
+        {contexteRecherche ? (
+          <Link href="/recherche">
+            <Button variant="ghost"><FolderSearch className="h-4 w-4" /> Mes recherches</Button>
+          </Link>
+        ) : (
+          <Link href="/onboarding?edit=1">
+            <Button variant="ghost"><UserCog className="h-4 w-4" /> Modifier mon profil</Button>
+          </Link>
+        )}
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  // useSearchParams impose une frontière Suspense (comme l'onboarding).
+  return (
+    <Suspense fallback={null}>
+      <DashboardInner />
+    </Suspense>
   );
 }

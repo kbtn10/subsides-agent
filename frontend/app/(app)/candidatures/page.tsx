@@ -43,7 +43,10 @@ function Carte({ c, onDeplacer }: {
       enRetard && "opacity-70",
     )}>
       <Link href={`/candidature/${c.id}`} className="block">
-        <p className="line-clamp-2 font-display text-[15px] font-semibold leading-snug text-ink group-hover:underline">
+        {/* Titre clampé à 2 lignes avec une hauteur réservée : les cartes du
+            kanban gardent un bloc-titre homogène, court ou long. */}
+        <p title={s?.titre ?? undefined}
+          className="line-clamp-2 min-h-[2.75em] font-display text-[15px] font-semibold leading-snug text-ink group-hover:underline">
           {s?.titre ?? "Subside"}
         </p>
         <p className="mt-1 truncate text-[12px] text-ink-soft">{s?.organisme ?? s?.source_id}</p>
