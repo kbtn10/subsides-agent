@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { motion, useReducedMotion } from "framer-motion";
-import { CalendarDays, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { joursAvant, pastille } from "@/components/compact-card";
+import { IllusCalendrier } from "@/components/illustrations";
+import { useTitre } from "@/lib/use-titre";
 import { api } from "@/lib/api";
 import { resoudreProfilId } from "@/lib/profil-courant";
 import { RappelsCandidatures } from "@/components/rappels-candidatures";
@@ -31,6 +33,7 @@ function ton(j: number) {
 }
 
 export default function EcheancesPage() {
+  useTitre("Échéances");
   const router = useRouter();
   const { getToken } = useAuth();
   const reduce = useReducedMotion();
@@ -92,7 +95,7 @@ export default function EcheancesPage() {
   const urgents = items.filter((m) => (joursAvant(m.subside.deadline) ?? 999) < 30).length;
 
   return (
-    <div>
+    <div className="mx-auto max-w-[900px]">
       {pid && <RappelsCandidatures profilId={pid} />}
 
       <header className="mb-6">
@@ -106,15 +109,15 @@ export default function EcheancesPage() {
       </header>
 
       {items.length === 0 && (
-        <div className="rounded-[var(--radius-card)] border border-border bg-surface p-8 text-center">
-          <CalendarDays className="mx-auto h-6 w-6 text-ink-faint" aria-hidden />
-          <p className="mt-3 font-display text-lg text-ink">Rien à noter dans votre agenda</p>
+        <div className="rounded-[var(--radius-card)] border border-border bg-surface p-10 text-center">
+          <IllusCalendrier className="mx-auto h-20 w-20" />
+          <p className="mt-4 font-display text-lg text-ink">Aucune échéance pressante</p>
           <p className="mx-auto mt-1.5 max-w-md text-ink-soft">
-            Vos correspondances actuelles sont soit en continu, soit sans date annoncée.
-            Dès qu&apos;un appel daté vous correspond, il apparaîtra ici.
+            Profitez-en pour explorer vos correspondances — dès qu&apos;un appel daté
+            vous correspond, il apparaît ici.
           </p>
           <Link href="/dashboard" className="mt-4 inline-block">
-            <Button variant="ghost" size="sm">Voir mes subsides</Button>
+            <Button size="sm">Explorer mes correspondances</Button>
           </Link>
         </div>
       )}
@@ -140,7 +143,8 @@ export default function EcheancesPage() {
                       aria-hidden />
                     <Link href={`/subside/${m.id}`}
                       className={cn(
-                        "block rounded-[var(--radius-card)] border bg-surface px-4 py-3 transition-shadow hover:shadow-[var(--shadow-lift)]",
+                        "block rounded-[var(--radius-card)] border bg-surface px-4 py-3 transition-all duration-150",
+                        "hover:-translate-y-px hover:bg-surface-2 hover:shadow-[var(--shadow-lift)]",
                         t.fond,
                       )}>
                       <div className="flex items-start justify-between gap-3">

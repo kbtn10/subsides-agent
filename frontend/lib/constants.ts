@@ -74,11 +74,13 @@ export const STATUT_LABEL: Record<string, string> = {
   abandonne: "Abandonné",
 };
 
-// Pastille de couleur par statut (classes Tailwind du design system).
+// Pastille de couleur par statut (design system, lot 8). La couleur signifie
+// l'avancement : gris (à étudier) → ambre (en cours) → bleu-gris (soumis, en
+// attente) → vert (obtenu) ; refusé/abandonné en gris estompé.
 export const STATUT_STYLE: Record<string, string> = {
   a_etudier: "bg-surface-2 text-ink-soft",
-  dossier_en_cours: "bg-[#eef4f8] text-[#2b6a8f]",
-  soumis: "bg-amber-soft text-amber",
+  dossier_en_cours: "bg-amber-soft text-amber",
+  soumis: "bg-info-soft text-info",
   obtenu: "bg-accent-soft text-accent",
   refuse: "bg-neutral-soft text-neutral",
   abandonne: "bg-neutral-soft text-neutral",

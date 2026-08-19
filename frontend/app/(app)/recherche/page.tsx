@@ -7,6 +7,8 @@ import { Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea, CheckPill } from "@/components/ui/field";
 import { CompactCard } from "@/components/compact-card";
+import { IllusLoupe } from "@/components/illustrations";
+import { useTitre } from "@/lib/use-titre";
 import { api, ApiError } from "@/lib/api";
 import { COMMUNES_19, SECTEURS } from "@/lib/constants";
 import type { Matching } from "@/lib/types";
@@ -19,6 +21,7 @@ const ELIGIBLE = ["probablement_eligible", "eligible_sous_conditions"];
  * un profil éphémère, on n'écrit rien dans le profil de l'utilisateur.
  */
 export default function RecherchePage() {
+  useTitre("Recherche libre");
   const { getToken } = useAuth();
 
   const [commune, setCommune] = useState(COMMUNES_19[0]);
@@ -147,6 +150,17 @@ export default function RecherchePage() {
           ))}
         </AnimatePresence>
       </div>
+
+      {etat === "repos" && eligibles.length === 0 && (
+        <div className="mt-6 rounded-[var(--radius-card)] border border-border bg-surface p-10 text-center">
+          <IllusLoupe className="mx-auto h-20 w-20" />
+          <p className="mt-4 font-display text-lg text-ink">Testez une hypothèse</p>
+          <p className="mx-auto mt-1.5 max-w-md text-ink-soft">
+            Décrivez un projet ci-dessus et lancez la recherche : les subsides qui
+            pourraient lui correspondre apparaîtront ici. Rien n&apos;est enregistré.
+          </p>
+        </div>
+      )}
 
       {etat === "fini" && eligibles.length === 0 && (
         <p className="mt-6 rounded-[var(--radius-card)] border border-border bg-surface p-6 text-center text-ink-soft">

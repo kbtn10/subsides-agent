@@ -4,11 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { Loader2 } from "lucide-react";
+import { ClipboardList, Loader2, TrendingUp, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BadgeEcheance } from "@/components/compact-card";
+import { BadgeEcheance, joursAvant } from "@/components/compact-card";
 import { StatTile } from "@/components/stat-tile";
 import { StatutModale } from "@/components/statut-modale";
+import { IllusDossier } from "@/components/illustrations";
+import { useToast } from "@/components/toast";
+import { useTitre } from "@/lib/use-titre";
 import { api } from "@/lib/api";
 import { resoudreProfilId } from "@/lib/profil-courant";
 import { STATUTS_CANDIDATURE, STATUT_LABEL, STATUT_STYLE } from "@/lib/constants";
@@ -26,23 +29,43 @@ function Carte({ c, onDeplacer }: {
   c: Candidature; onDeplacer: (statut: StatutCandidature) => void;
 }) {
   const s = c.subside;
+  // Échéance passée alors que le dossier n'est pas encore soumis : on grise et
+  // on signale — sans rien automatiser, c'est à l'utilisateur de trancher.
+  const j = joursAvant(s?.deadline ?? null);
+  const enRetard = j !== null && j < 0 && ["a_etudier", "dossier_en_cours"].includes(c.statut);
+  const obtenu = c.statut === "obtenu";
+
   return (
-    <div className="rounded-[var(--radius-card)] border border-border bg-surface p-3 shadow-[var(--shadow-soft)]">
+    <div className={cn(
+      "rounded-[var(--radius-card)] border p-3 shadow-[var(--shadow-soft)] transition-all duration-150",
+      "hover:-translate-y-px hover:border-accent/40 hover:shadow-[var(--shadow-lift)]",
+      obtenu ? "border-accent/25 bg-accent-soft/40" : "border-border bg-surface",
+      enRetard && "opacity-70",
+    )}>
       <Link href={`/candidature/${c.id}`} className="block">
-        <p className="line-clamp-2 font-display text-[15px] font-semibold leading-snug text-ink hover:underline">
+        <p className="line-clamp-2 font-display text-[15px] font-semibold leading-snug text-ink group-hover:underline">
           {s?.titre ?? "Subside"}
         </p>
         <p className="mt-1 truncate text-[12px] text-ink-soft">{s?.organisme ?? s?.source_id}</p>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px]">
-          <BadgeEcheance deadline={s?.deadline ?? null} permanent={s?.permanent} />
+          {enRetard ? (
+            <span className="rounded-md bg-neutral-soft px-2 py-0.5 font-semibold text-neutral">échéance passée</span>
+          ) : (
+            <BadgeEcheance deadline={s?.deadline ?? null} permanent={s?.permanent} />
+          )}
           {c.montant_demande ? (
             <span className="text-ink-faint">demandé {euros(c.montant_demande)}</span>
           ) : null}
-          {c.statut === "obtenu" && c.montant_obtenu ? (
+          {obtenu && c.montant_obtenu ? (
             <span className="font-semibold text-accent">obtenu {euros(c.montant_obtenu)}</span>
           ) : null}
         </div>
       </Link>
+      {enRetard && (
+        <p className="mt-2 text-[11px] text-ink-faint">
+          L&apos;échéance est passée — vous pouvez la passer en « abandonné » ci-dessous.
+        </p>
+      )}
       {/* Déplacement de statut : robuste et mobile-friendly (pas de drag). */}
       <select
         aria-label="Changer le statut"
@@ -58,8 +81,10 @@ function Carte({ c, onDeplacer }: {
 }
 
 export default function CandidaturesPage() {
+  useTitre("Mes candidatures");
   const router = useRouter();
   const { getToken } = useAuth();
+  const toast = useToast();
   const [profilId, setProfilId] = useState<number | null>(null);
   const [liste, setListe] = useState<Candidature[] | null>(null);
   const [stats, setStats] = useState<CandidatureStats | null>(null);
@@ -84,6 +109,13 @@ export default function CandidaturesPage() {
 
   const appliquer = async (id: number, patch: Parameters<typeof api.majCandidature>[1]) => {
     await api.majCandidature(id, patch, getToken);
+    // Un mot chaleureux aux moments clés — jamais de confettis plein écran.
+    if (patch.statut === "obtenu") {
+      const m = patch.montant_obtenu;
+      toast(m ? `${euros(Number(m))} obtenus — bravo 🎉` : "Candidature acceptée — bravo 🎉", "succes");
+    } else if (patch.statut === "refuse") {
+      toast("Ça arrive. Le prochain appel est peut-être déjà dans vos correspondances.");
+    }
     if (profilId) charger(profilId);
   };
 
@@ -119,24 +151,27 @@ export default function CandidaturesPage() {
 
       {stats && stats.total_candidatures > 0 && (
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:gap-4">
-          <StatTile valeur={stats.total_candidatures} libelle="Candidatures" />
-          <StatTile texte={euros(stats.total_demande)} libelle="Total demandé" />
-          <StatTile texte={euros(stats.total_obtenu)} libelle="Total obtenu" accent />
+          <StatTile valeur={stats.total_candidatures} libelle="Candidatures" icon={ClipboardList} teinte="neutral" />
+          <StatTile texte={euros(stats.total_demande)} libelle="Total demandé" icon={Wallet} teinte="info" />
+          <StatTile texte={euros(stats.total_obtenu)} libelle="Total obtenu" accent icon={TrendingUp} teinte="accent" />
           <StatTile
             texte={stats.taux_succes == null ? "—" : `${Math.round(stats.taux_succes * 100)} %`}
-            libelle={stats.taux_succes == null ? "Taux de succès (dès 3 décisions)" : "Taux de succès"} />
+            libelle="Taux de succès"
+            sousTexte={stats.taux_succes == null ? `${stats.decisions}/3 décisions` : undefined}
+            icon={TrendingUp} teinte="amber" />
         </div>
       )}
 
       {liste.length === 0 ? (
-        <div className="rounded-[var(--radius-card)] border border-border bg-surface p-8 text-center">
-          <p className="font-display text-lg text-ink">Aucune candidature pour l&apos;instant</p>
+        <div className="rounded-[var(--radius-card)] border border-border bg-surface p-10 text-center">
+          <IllusDossier className="mx-auto h-20 w-20" />
+          <p className="mt-4 font-display text-lg text-ink">Votre première candidature</p>
           <p className="mx-auto mt-1.5 max-w-md text-ink-soft">
-            Depuis un subside qui vous correspond, cliquez sur « Préparer ma
-            candidature » pour ouvrir un dossier de suivi ici.
+            Elle commence par une correspondance : depuis un subside qui vous
+            correspond, cliquez sur « Préparer ma candidature ».
           </p>
           <Link href="/dashboard" className="mt-4 inline-block">
-            <Button variant="ghost" size="sm">Voir mes subsides</Button>
+            <Button size="sm">Voir mes subsides</Button>
           </Link>
         </div>
       ) : (

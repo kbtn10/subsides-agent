@@ -14,8 +14,10 @@ import { api, ApiError } from "@/lib/api";
 import { STATUT_LABEL, STATUT_STYLE } from "@/lib/constants";
 import type { CandidatureDetail } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useTitre } from "@/lib/use-titre";
 
 export default function CandidaturePage() {
+  useTitre("Ma candidature");
   const params = useParams<{ id: string }>();
   const { getToken } = useAuth();
   const id = Number(params?.id);
@@ -76,7 +78,7 @@ export default function CandidaturePage() {
         </p>
 
         {rec && (
-          <p className="mt-3 flex items-center gap-2 rounded-[var(--radius-ctrl)] bg-[#eef4f8] px-3 py-2 text-sm text-[#2b6a8f]">
+          <p className="mt-3 flex items-center gap-2 rounded-[var(--radius-ctrl)] bg-info-soft px-3 py-2 text-sm text-info">
             <History className="h-4 w-4 shrink-0" aria-hidden />
             Cet appel semble récurrent — édition {rec.annee} détectée les années précédentes.
           </p>

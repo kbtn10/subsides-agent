@@ -9,6 +9,7 @@ import { useEstAdmin } from "@/lib/use-admin";
 import { PRODUCT_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { CompteBouton } from "./compte-bouton";
+import { PointVeille } from "./point-veille";
 
 const NAV = [
   { href: "/dashboard", label: "Mes subsides", icon: LayoutGrid },
@@ -53,7 +54,7 @@ export function Sidebar() {
   return (
     // sticky + h-screen : la nav reste visible quand la liste défile, et ne
     // s'étire pas avec la hauteur du contenu.
-    <aside className="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-[240px] lg:shrink-0 lg:flex-col lg:border-r lg:border-border lg:bg-surface/60">
+    <aside className="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-[240px] lg:shrink-0 lg:flex-col lg:border-r lg:border-border lg:bg-sidebar">
       <div className="flex h-16 items-center px-5">
         <Link href="/dashboard" className="font-display text-xl font-semibold text-ink">
           {PRODUCT_NAME}
@@ -65,9 +66,12 @@ export function Sidebar() {
       </nav>
       <div className="border-t border-border px-3 py-3">
         <CompteBouton />
-        <p className="mt-3 px-2 text-xs leading-relaxed text-ink-faint">
-          {nbSources ?? "—"} sources officielles surveillées
-        </p>
+        <div className="mt-3 flex flex-col gap-1.5 px-2">
+          <PointVeille />
+          <p className="text-xs leading-relaxed text-ink-faint">
+            {nbSources ?? "—"} sources officielles surveillées
+          </p>
+        </div>
       </div>
     </aside>
   );

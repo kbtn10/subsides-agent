@@ -5,14 +5,16 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, Loader2, RotateCw, UserCog } from "lucide-react";
+import { CalendarClock, Clock, Loader2, Radar, RotateCw, Sparkles, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CompactCard } from "@/components/compact-card";
 import { RappelsCandidatures } from "@/components/rappels-candidatures";
+import { IllusRadar } from "@/components/illustrations";
 import { StatTile } from "@/components/stat-tile";
 import { AnimatedNumber } from "@/components/animated-number";
 import { api, ApiError } from "@/lib/api";
 import { oublierProfilCache, resoudreProfilId } from "@/lib/profil-courant";
+import { useTitre } from "@/lib/use-titre";
 import type { Matching, Resume } from "@/lib/types";
 
 type Phase = "chargement" | "analyse" | "termine" | "vide" | "erreur";
@@ -30,6 +32,7 @@ export function fraicheur(iso: string | null): string {
 }
 
 export default function DashboardPage() {
+  useTitre("Mes subsides");
   const router = useRouter();
   const { getToken } = useAuth();
 
@@ -42,6 +45,7 @@ export default function DashboardPage() {
   const [resume, setResume] = useState<Resume | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
   const [nonReplie, setNonReplie] = useState(false);
+  const [nom, setNom] = useState<string | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const vus = useRef<Set<number>>(new Set());
@@ -55,6 +59,7 @@ export default function DashboardPage() {
   // UN seul appel pour tout le dashboard : résumé + correspondances + fraîcheur.
   const charger = useCallback(async (pid: number) => {
     const d = await api.dashboard(pid, getToken);
+    setNom(d.profil?.nom ?? null);
     setTotalBase(d.total_subsides);
     setMaj(d.derniere_maj);
     setResume(d.resume);
@@ -153,20 +158,27 @@ export default function DashboardPage() {
   const analyseRatee = eligibles.length === 0 && nonRetenus.length === 0 && erreurs.length > 0;
   const relancer = () => { if (profilId.current) lancer(profilId.current); };
 
+  const nbCorr = resume?.correspondances ?? eligibles.length;
+  const nbEch = resume?.deadlines_60j ?? 0;
+  const sousLigne = nbCorr > 0
+    ? `${nbCorr} correspondance${nbCorr > 1 ? "s" : ""} vous ${nbCorr > 1 ? "attendent" : "attend"}`
+      + (nbEch > 0 ? ` · ${nbEch} échéance${nbEch > 1 ? "s" : ""} approche${nbEch > 1 ? "nt" : ""}` : "")
+    : "Tout est calme — votre veille tourne.";
+
   return (
     <div>
       <header className="mb-6">
-        <h1 className="font-display text-3xl font-semibold text-ink">Vos subsides</h1>
-        <p className="mt-1 text-ink-soft">
-          Les appels analysés pour votre association, les plus prometteurs d&apos;abord.
-        </p>
+        <h1 className="font-display text-3xl font-semibold text-ink">
+          Bonjour{nom ? `, ${nom}` : ""}
+        </h1>
+        <p className="mt-1 text-ink-soft">{sousLigne}</p>
       </header>
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-        <StatTile valeur={resume?.correspondances ?? eligibles.length} libelle="Correspondances" accent />
-        <StatTile valeur={resume?.deadlines_60j ?? 0} libelle="Échéances < 60 jours" />
-        <StatTile valeur={totalBase} libelle="Subsides surveillés" />
-        <StatTile texte={fraicheur(maj)} libelle="Données à jour" />
+        <StatTile valeur={nbCorr} libelle="Correspondances" accent icon={Sparkles} teinte="accent" />
+        <StatTile valeur={nbEch} libelle="Échéances < 60 jours" icon={CalendarClock} teinte="amber" />
+        <StatTile valeur={totalBase} libelle="Subsides surveillés" icon={Radar} teinte="accent" />
+        <StatTile texte={fraicheur(maj)} libelle="Données à jour" icon={Clock} teinte="info" />
       </div>
 
       {pidRappels && <RappelsCandidatures profilId={pidRappels} />}
@@ -179,7 +191,7 @@ export default function DashboardPage() {
 
       {phase === "analyse" && (
         <motion.div layout
-          className="mb-5 rounded-[var(--radius-card)] border border-[#d5e2ec] bg-[#eef4f8] p-4">
+          className="mb-5 rounded-[var(--radius-card)] border border-info/25 bg-info-soft p-4">
           <p className="text-[15px] text-ink">
             <span className="font-semibold"><AnimatedNumber value={totalBase} /></span> subsides suivis
             {candidats !== null && <>
@@ -215,10 +227,14 @@ export default function DashboardPage() {
       )}
 
       {(phase === "termine" || phase === "vide") && !analyseRatee && (
-        <div className="mb-5 flex items-start gap-2.5 rounded-[var(--radius-card)] bg-accent-soft px-4 py-3 text-sm text-accent">
-          <Bell className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+        <div className="mb-5 flex items-center gap-2.5 rounded-[var(--radius-card)] bg-accent-soft px-4 py-3 text-sm text-accent">
+          <span className="veille-dot inline-block h-2 w-2 shrink-0 rounded-full bg-accent" aria-hidden />
           <span>Votre veille est active — les nouveaux appels correspondant à votre profil apparaîtront ici.</span>
         </div>
+      )}
+
+      {eligibles.length > 0 && (
+        <h2 className="mb-3 font-display text-lg font-semibold text-ink">Vos subsides</h2>
       )}
 
       <div className="space-y-3">
@@ -232,10 +248,11 @@ export default function DashboardPage() {
       </div>
 
       {phase === "vide" && eligibles.length === 0 && !analyseRatee && (
-        <div className="rounded-[var(--radius-card)] border border-border bg-surface p-8 text-center">
-          <p className="font-display text-lg text-ink">Aucune correspondance forte aujourd&apos;hui</p>
+        <div className="rounded-[var(--radius-card)] border border-border bg-surface p-10 text-center">
+          <IllusRadar className="mx-auto h-20 w-20" />
+          <p className="mt-4 font-display text-lg text-ink">Rien de fortement adéquat aujourd&apos;hui</p>
           <p className="mx-auto mt-1.5 max-w-md text-ink-soft">
-            Votre veille tourne : dès qu&apos;un appel vous correspond, il apparaîtra ici.
+            Votre veille tourne : dès qu&apos;un appel vous correspond, il apparaît ici.
             Vous pouvez aussi enrichir votre profil pour affiner l&apos;analyse.
           </p>
           <Link href="/onboarding?edit=1" className="mt-4 inline-block">
@@ -259,15 +276,17 @@ export default function DashboardPage() {
             {nonReplie ? "Masquer" : "Voir"} les non retenus ({nonRetenus.length})
           </button>
           {nonReplie && (
-            <>
-              <p className="mt-1 text-sm text-ink-faint">
+            // Fond grisé-chaud : cette section recule visuellement (c'est du tri,
+            // pas la matière principale).
+            <div className="mt-3 rounded-[var(--radius-card)] bg-surface-2 p-4">
+              <p className="text-sm text-ink-faint">
                 Ces subsides existent mais un critère d&apos;éligibilité vous en écarte.
                 Ce n&apos;est pas un échec, juste du tri.
               </p>
               <div className="mt-3 space-y-3">
                 {nonRetenus.map((m, i) => <CompactCard key={m.subside.id} m={m} index={i} />)}
               </div>
-            </>
+            </div>
           )}
         </section>
       )}

@@ -27,7 +27,13 @@
   --amber-soft: #fbf1e3;
   --neutral: #6b655f;      /* non retenu — gris doux, jamais rouge */
   --neutral-soft: #f0eee9;
+  --info: #2b6a8f;         /* bleu-gris doux (soumis, info) — AA sur --info-soft */
+  --info-soft: #e8f0f5;
   --danger: #9a3325;       /* réservé aux erreurs techniques, pas aux verdicts */
+
+  /* Lot 8 : la sidebar est un demi-ton plus chaud/soutenu que le contenu, pour
+     créer deux plans. Distincte de --bg (page) et --surface (cartes). */
+  --sidebar: #f2efe8;
 
   --shadow-soft: 0 1px 2px rgba(26,24,21,.04), 0 8px 24px -12px rgba(26,24,21,.10);
   --shadow-lift: 0 2px 4px rgba(26,24,21,.05), 0 16px 40px -16px rgba(26,24,21,.16);
@@ -54,6 +60,9 @@
   --color-amber-soft: var(--amber-soft);
   --color-neutral: var(--neutral);
   --color-neutral-soft: var(--neutral-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-sidebar: var(--sidebar);
   --color-danger: var(--danger);
 
   --font-display: var(--font-fraunces);
@@ -89,8 +98,30 @@
   }
 }
 
+/* Focus clavier cohérent : anneau vert du design system, jamais l'outline
+   bleu du navigateur. Uniquement au clavier (focus-visible). */
+:where(a, button, [role="button"], input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Point de veille — LE seul élément animé en continu de l'app (lot 8).
+   Un halo qui respire (2.8s), échelle + opacité subtiles. */
+@keyframes veille-halo {
+  0%, 100% { transform: scale(1); opacity: 0.55; }
+  50%      { transform: scale(2.1); opacity: 0; }
+}
+.veille-dot { position: relative; }
+.veille-dot::after {
+  content: ""; position: absolute; inset: 0; border-radius: 9999px;
+  background: currentColor;
+  animation: veille-halo 2.8s ease-in-out infinite;
+}
+
 /* Respect de prefers-reduced-motion (Framer Motion le respecte aussi via hook). */
 @media (prefers-reduced-motion: reduce) {
+  .veille-dot::after { animation: none; opacity: 0; }
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;

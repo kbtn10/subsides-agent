@@ -15,6 +15,7 @@ import { api, ApiError } from "@/lib/api";
 import { VERDICT_LABEL } from "@/lib/constants";
 import type { MatchingDetail } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useTitre } from "@/lib/use-titre";
 
 /** Bloc « une liste de critères » — même grammaire visuelle pour les 3 natures. */
 function Criteres({
@@ -47,6 +48,7 @@ function Meta({ libelle, valeur }: { libelle: string; valeur: string | null }) {
 }
 
 export default function SubsideDetailPage() {
+  useTitre("Détail du subside");
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { getToken } = useAuth();
@@ -138,7 +140,7 @@ export default function SubsideDetailPage() {
         </p>
 
         {m.recurrence && (
-          <p className="mt-3 flex items-center gap-2 rounded-[var(--radius-ctrl)] bg-[#eef4f8] px-3 py-2 text-sm text-[#2b6a8f]">
+          <p className="mt-3 flex items-center gap-2 rounded-[var(--radius-ctrl)] bg-info-soft px-3 py-2 text-sm text-info">
             <History className="h-4 w-4 shrink-0" aria-hidden />
             Cet appel semble récurrent — une édition {m.recurrence.annee} a été détectée
             les années précédentes.
