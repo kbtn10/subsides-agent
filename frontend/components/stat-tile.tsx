@@ -22,18 +22,18 @@ export function StatTile({
   accent?: boolean; icon?: LucideIcon; teinte?: Teinte;
 }) {
   return (
-    <div className="rounded-[var(--radius-card)] border border-border bg-surface px-4 py-3.5">
+    <div className="rounded-[var(--radius-card)] border border-border bg-surface px-5 py-4">
       <div className="flex items-start justify-between gap-2">
-        <p className={`font-display text-2xl font-semibold leading-none ${accent ? "text-accent" : "text-ink"}`}>
+        <p className={`font-display text-[28px] font-semibold leading-none sm:text-3xl ${accent ? "text-accent" : "text-ink"}`}>
           {texte !== undefined ? texte : <AnimatedNumber value={valeur ?? 0} />}
         </p>
         {Icon && (
-          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${PASTILLE[teinte]}`}>
-            <Icon className="h-4 w-4" aria-hidden />
+          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${PASTILLE[teinte]}`}>
+            <Icon className="h-[18px] w-[18px]" aria-hidden />
           </span>
         )}
       </div>
-      <p className="mt-1.5 text-[13px] leading-snug text-ink-soft">{libelle}</p>
+      <p className="mt-2 text-[13px] leading-snug text-ink-soft">{libelle}</p>
       {sousTexte && <p className="mt-0.5 text-[12px] text-ink-faint">{sousTexte}</p>}
     </div>
   );

@@ -102,10 +102,15 @@ export default function CandidaturePage() {
         </p>
       </header>
 
-      <div className="mt-6 space-y-5">
+      {/* Deux colonnes sur grand écran : la checklist (qu'on garde sous les yeux)
+          à gauche, l'aide (conformité + copilote) à droite. Une seule colonne
+          sous 1100px. */}
+      <div className="mt-6 grid gap-5 min-[1100px]:grid-cols-2 min-[1100px]:items-start">
         <ChecklistSection candidatureId={c.id} initial={c.checklist} />
-        <ConformiteSection candidatureId={c.id} />
-        <CopiloteSection candidatureId={c.id} historique={c.copilote} />
+        <div className="space-y-5">
+          <ConformiteSection candidatureId={c.id} />
+          <CopiloteSection candidatureId={c.id} historique={c.copilote} />
+        </div>
       </div>
     </div>
   );

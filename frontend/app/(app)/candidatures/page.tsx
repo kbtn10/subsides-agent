@@ -176,12 +176,13 @@ export default function CandidaturesPage() {
         </div>
       ) : (
         <>
-          {/* Colonnes de statut : défilent horizontalement, jamais le body. */}
-          <div className="flex gap-4 overflow-x-auto pb-2">
+          {/* Colonnes de statut : à parts égales sur la largeur (≥ 900px),
+              défilement horizontal seulement sur petit écran. */}
+          <div className="flex gap-4 overflow-x-auto pb-2 min-[900px]:overflow-x-visible">
             {STATUTS_CANDIDATURE.map((st) => {
               const items = parStatut(st);
               return (
-                <section key={st} className="w-[260px] shrink-0">
+                <section key={st} className="w-[260px] shrink-0 min-[900px]:w-auto min-[900px]:flex-1">
                   <div className="mb-2 flex items-center justify-between">
                     <span className={cn("rounded-full px-2.5 py-1 text-[12px] font-bold",
                       STATUT_STYLE[st])}>{STATUT_LABEL[st]}</span>

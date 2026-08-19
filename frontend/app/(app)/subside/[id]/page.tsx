@@ -156,73 +156,79 @@ export default function SubsideDetailPage() {
         </div>
       </header>
 
-      {/* Le jugement, en toutes lettres — et jamais une promesse. */}
-      {m.justification && (
-        <div className="mt-5 rounded-[var(--radius-card)] border border-border bg-surface p-5 shadow-[var(--shadow-soft)]">
-          <p className="text-[15px] leading-relaxed text-ink">{m.justification}</p>
-          <p className="mt-3 border-t border-border pt-3 text-[13px] text-ink-faint">
-            Cette analyse est une aide à la décision, pas une décision. Vérifiez toujours les
-            conditions sur la fiche officielle avant de candidater.
-          </p>
-        </div>
-      )}
-
-      <Criteres titre="À vérifier avant de candidater" items={m.criteres_a_verifier}
-        icone={<AlertTriangle className="h-4 w-4 text-amber" />} couleur="text-ink" />
-
-      <Criteres titre="Ce qui joue en votre faveur" items={m.criteres_satisfaits}
-        icone={<Check className="h-4 w-4 text-accent" />} couleur="text-ink" />
-
-      <Criteres titre="Ce qui ne correspond pas" items={m.criteres_non_satisfaits}
-        icone={<Minus className="h-4 w-4 text-neutral" />} couleur="text-ink-soft" />
-
-      <Criteres titre="Pièces généralement demandées" items={m.pieces_dossier}
-        icone={<FileText className="h-4 w-4 text-ink-faint" />} couleur="text-ink-soft" />
-
-      {/* La fiche officielle, telle qu'extraite — aucune reformulation. */}
-      <section className="mt-8 rounded-[var(--radius-card)] border border-border bg-surface-2 p-5">
-        <h2 className="font-display text-lg font-semibold text-ink">La fiche officielle</h2>
-        {s.description && (
-          <p className="mt-2 whitespace-pre-line text-[15px] leading-relaxed text-ink/90">
-            {s.description}
-          </p>
-        )}
-        <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Meta libelle="Échéance" valeur={s.deadline ?? (s.permanent ? "En continu" : null)} />
-          <Meta libelle="Montant" valeur={s.montant} />
-          <Meta libelle="Zone géographique" valeur={s.zone_geographique} />
-          <Meta libelle="Public cible" valeur={s.public_cible} />
-          <Meta libelle="Bénéficiaires" valeur={s.type_beneficiaire?.join(", ") || null} />
-          <Meta libelle="Secteurs" valeur={s.secteurs?.join(", ") || null} />
-        </dl>
-
-        {s.criteres_eligibilite?.length > 0 && (
-          <div className="mt-5">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
-              Critères d&apos;éligibilité annoncés
-            </h3>
-            <ul className="mt-2 space-y-1.5">
-              {s.criteres_eligibilite.map((c, i) => (
-                <li key={i} className="flex gap-2 text-[15px] text-ink/90">
-                  <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-ink-faint" aria-hidden />
-                  <span>{c}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        <div className="mt-5 flex flex-wrap gap-3">
-          <a href={s.url_source} target="_blank" rel="noopener noreferrer">
-            <Button>Voir la fiche officielle <ArrowUpRight className="h-4 w-4" /></Button>
-          </a>
-          {s.lien_candidature && s.lien_candidature !== s.url_source && (
-            <a href={s.lien_candidature} target="_blank" rel="noopener noreferrer">
-              <Button variant="ghost">Formulaire de candidature <ArrowUpRight className="h-4 w-4" /></Button>
-            </a>
+      {/* Deux colonnes sur grand écran : l'analyse et la fiche à gauche, une
+          colonne méta collante (échéance, montant, zone, liens) à droite —
+          pour ne pas étirer le texte sur toute la largeur. */}
+      <div className="mt-5 grid gap-6 min-[1100px]:grid-cols-[minmax(0,1fr)_320px] min-[1100px]:items-start">
+        <div className="min-w-0">
+          {/* Le jugement, en toutes lettres — et jamais une promesse. */}
+          {m.justification && (
+            <div className="rounded-[var(--radius-card)] border border-border bg-surface p-5 shadow-[var(--shadow-soft)]">
+              <p className="text-[15px] leading-relaxed text-ink">{m.justification}</p>
+              <p className="mt-3 border-t border-border pt-3 text-[13px] text-ink-faint">
+                Cette analyse est une aide à la décision, pas une décision. Vérifiez toujours les
+                conditions sur la fiche officielle avant de candidater.
+              </p>
+            </div>
           )}
+
+          <Criteres titre="À vérifier avant de candidater" items={m.criteres_a_verifier}
+            icone={<AlertTriangle className="h-4 w-4 text-amber" />} couleur="text-ink" />
+          <Criteres titre="Ce qui joue en votre faveur" items={m.criteres_satisfaits}
+            icone={<Check className="h-4 w-4 text-accent" />} couleur="text-ink" />
+          <Criteres titre="Ce qui ne correspond pas" items={m.criteres_non_satisfaits}
+            icone={<Minus className="h-4 w-4 text-neutral" />} couleur="text-ink-soft" />
+          <Criteres titre="Pièces généralement demandées" items={m.pieces_dossier}
+            icone={<FileText className="h-4 w-4 text-ink-faint" />} couleur="text-ink-soft" />
+
+          {/* La fiche officielle, telle qu'extraite — aucune reformulation. */}
+          <section className="mt-8 rounded-[var(--radius-card)] border border-border bg-surface-2 p-5">
+            <h2 className="font-display text-lg font-semibold text-ink">La fiche officielle</h2>
+            {s.description && (
+              <p className="mt-2 whitespace-pre-line text-[15px] leading-relaxed text-ink/90">
+                {s.description}
+              </p>
+            )}
+            {s.criteres_eligibilite?.length > 0 && (
+              <div className="mt-5">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+                  Critères d&apos;éligibilité annoncés
+                </h3>
+                <ul className="mt-2 space-y-1.5">
+                  {s.criteres_eligibilite.map((c, i) => (
+                    <li key={i} className="flex gap-2 text-[15px] text-ink/90">
+                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-ink-faint" aria-hidden />
+                      <span>{c}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
         </div>
-      </section>
+
+        {/* Colonne méta */}
+        <aside className="rounded-[var(--radius-card)] border border-border bg-surface p-5 shadow-[var(--shadow-soft)] min-[1100px]:sticky min-[1100px]:top-6">
+          <dl className="grid gap-4 sm:grid-cols-2 min-[1100px]:grid-cols-1">
+            <Meta libelle="Échéance" valeur={s.deadline ?? (s.permanent ? "En continu" : null)} />
+            <Meta libelle="Montant" valeur={s.montant} />
+            <Meta libelle="Zone géographique" valeur={s.zone_geographique} />
+            <Meta libelle="Public cible" valeur={s.public_cible} />
+            <Meta libelle="Bénéficiaires" valeur={s.type_beneficiaire?.join(", ") || null} />
+            <Meta libelle="Secteurs" valeur={s.secteurs?.join(", ") || null} />
+          </dl>
+          <div className="mt-5 flex flex-col gap-2.5 border-t border-border pt-5">
+            <a href={s.url_source} target="_blank" rel="noopener noreferrer">
+              <Button className="w-full">Voir la fiche officielle <ArrowUpRight className="h-4 w-4" /></Button>
+            </a>
+            {s.lien_candidature && s.lien_candidature !== s.url_source && (
+              <a href={s.lien_candidature} target="_blank" rel="noopener noreferrer">
+                <Button variant="ghost" className="w-full">Formulaire de candidature <ArrowUpRight className="h-4 w-4" /></Button>
+              </a>
+            )}
+          </div>
+        </aside>
+      </div>
     </motion.article>
   );
 }

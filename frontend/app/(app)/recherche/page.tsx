@@ -141,7 +141,7 @@ export default function RecherchePage() {
         {erreur && <p className="mt-3 text-sm text-danger">{erreur}</p>}
       </div>
 
-      <div className="mt-6 space-y-3">
+      <div className="mt-6 grid grid-cols-1 gap-3 min-[1100px]:grid-cols-2 min-[1500px]:grid-cols-3">
         <AnimatePresence>
           {eligibles.map((m, i) => (
             <motion.div key={m.subside.id} layout>

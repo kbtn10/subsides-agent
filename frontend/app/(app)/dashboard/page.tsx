@@ -237,7 +237,10 @@ export default function DashboardPage() {
         <h2 className="mb-3 font-display text-lg font-semibold text-ink">Vos subsides</h2>
       )}
 
-      <div className="space-y-3">
+      {/* Grille fluide : le stagger d'arrivée remplit la grille sans saut de
+          layout (chaque carte anime son opacité/translation, la grille garde
+          ses colonnes). 2 colonnes ≥ 1100px, 3 ≥ 1500px. */}
+      <div className="grid grid-cols-1 gap-3 min-[1100px]:grid-cols-2 min-[1500px]:grid-cols-3">
         <AnimatePresence>
           {eligibles.map((m, i) => (
             <motion.div key={m.subside.id} layout>
@@ -283,7 +286,7 @@ export default function DashboardPage() {
                 Ces subsides existent mais un critère d&apos;éligibilité vous en écarte.
                 Ce n&apos;est pas un échec, juste du tri.
               </p>
-              <div className="mt-3 space-y-3">
+              <div className="mt-3 grid grid-cols-1 gap-3 min-[1100px]:grid-cols-2 min-[1500px]:grid-cols-3">
                 {nonRetenus.map((m, i) => <CompactCard key={m.subside.id} m={m} index={i} />)}
               </div>
             </div>

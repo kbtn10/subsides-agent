@@ -1,22 +1,16 @@
+import { cookies } from "next/headers";
 import { Protected } from "@/components/protected";
-import { BottomBar, Sidebar } from "@/components/sidebar";
+import { AppShell } from "@/components/app-shell";
 import { ToastProvider } from "@/components/toast";
 
-// Shell de l'app authentifiée : sidebar fixe à gauche (desktop),
-// barre basse (mobile). Le contenu respire jusqu'à ~1100px.
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+// Shell de l'app authentifiée : sidebar repliable (desktop) + contenu fluide.
+// L'état de repli est lu côté serveur (cookie) pour éviter tout flash.
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const replie = (await cookies()).get("subsidia_sidebar")?.value === "1";
   return (
     <Protected>
       <ToastProvider>
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <div className="min-w-0 flex-1">
-            <main className="mx-auto w-full max-w-[1100px] px-4 pb-28 pt-6 sm:px-8 lg:pb-16">
-              {children}
-            </main>
-          </div>
-          <BottomBar />
-        </div>
+        <AppShell initialReplie={replie}>{children}</AppShell>
       </ToastProvider>
     </Protected>
   );

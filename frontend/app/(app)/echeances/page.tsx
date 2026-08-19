@@ -95,7 +95,7 @@ export default function EcheancesPage() {
   const urgents = items.filter((m) => (joursAvant(m.subside.deadline) ?? 999) < 30).length;
 
   return (
-    <div className="mx-auto max-w-[900px]">
+    <div>
       {pid && <RappelsCandidatures profilId={pid} />}
 
       <header className="mb-6">

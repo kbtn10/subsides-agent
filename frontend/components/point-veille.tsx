@@ -20,7 +20,9 @@ type Etat = { vieux: boolean; libelle: string };
  * fait partie de la vie) quand le dernier scrape date de plus de 48 h.
  * Le halo est coupé par prefers-reduced-motion (voir globals.css).
  */
-export function PointVeille({ compact = false }: { compact?: boolean }) {
+export function PointVeille({ compact = false, railOnly = false }: {
+  compact?: boolean; railOnly?: boolean;
+}) {
   const [etat, setEtat] = useState<Etat | null>(null);
 
   useEffect(() => {
@@ -39,6 +41,14 @@ export function PointVeille({ compact = false }: { compact?: boolean }) {
 
   if (!etat) return null;
   const couleur = etat.vieux ? "text-amber" : "text-accent";
+
+  // Rail replié : juste le point (l'info complète revient au survol via title).
+  if (railOnly) {
+    return (
+      <span className={`veille-dot inline-block h-2 w-2 rounded-full ${couleur}`}
+        style={{ backgroundColor: "currentColor" }} title={etat.libelle} aria-label={etat.libelle} />
+    );
+  }
 
   return (
     <span className={`inline-flex items-center gap-2 ${compact ? "text-[12px]" : "text-xs"}`}>
