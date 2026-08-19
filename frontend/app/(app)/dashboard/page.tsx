@@ -18,10 +18,38 @@ import { AnimatedNumber } from "@/components/animated-number";
 import { api, ApiError } from "@/lib/api";
 import { oublierProfilCache, resoudreProfilId } from "@/lib/profil-courant";
 import { useTitre } from "@/lib/use-titre";
+import { cn } from "@/lib/utils";
 import type { Matching, Resume } from "@/lib/types";
 
 type Phase = "chargement" | "analyse" | "termine" | "vide" | "erreur";
 const ELIGIBLE = ["probablement_eligible", "eligible_sous_conditions"];
+
+// Filtre de pertinence de « Mes subsides ». Les correspondances sont déjà
+// triées par pertinence décroissante côté serveur ; ce filtre laisse en plus
+// isoler un niveau (ex : ne voir que les « forte »).
+type FiltrePert = "toutes" | "forte" | "moyenne" | "faible";
+const NIVEAUX_PERT: { valeur: Exclude<FiltrePert, "toutes">; label: string }[] = [
+  { valeur: "forte", label: "Forte" },
+  { valeur: "moyenne", label: "Moyenne" },
+  { valeur: "faible", label: "Faible" },
+];
+
+/** Pastille de filtre pertinence : sélectionnable, avec le compte. */
+function PastillePert({ label, nombre, actif, onClick }: {
+  label: string; nombre: number; actif: boolean; onClick: () => void;
+}) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={actif}
+      className={cn(
+        "rounded-full border px-2.5 py-1 text-[13px] transition-colors",
+        actif
+          ? "border-accent bg-accent-soft font-medium text-accent"
+          : "border-border text-ink-soft hover:bg-surface-2 hover:text-ink",
+      )}>
+      {label} <span className={actif ? "text-accent/70" : "text-ink-faint"}>{nombre}</span>
+    </button>
+  );
+}
 
 /** Fraîcheur lisible : « il y a 3 h », « il y a 2 j ». */
 export function fraicheur(iso: string | null): string {
@@ -55,6 +83,7 @@ function DashboardInner() {
   const [nom, setNom] = useState<string | null>(null);
   // Contexte « recherche » : nom à afficher dans le bandeau, ou null (principal).
   const [contexteRecherche, setContexteRecherche] = useState<string | null>(null);
+  const [filtrePert, setFiltrePert] = useState<FiltrePert>("toutes");
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const vus = useRef<Set<number>>(new Set());
@@ -111,7 +140,7 @@ function DashboardInner() {
 
   const lancer = useCallback(async (pid: number) => {
     setPhase("analyse"); setResultats([]); vus.current.clear();
-    setTraites(0); setCandidats(null); setErreur(null);
+    setTraites(0); setCandidats(null); setErreur(null); setFiltrePert("toutes");
     try {
       const { job_id } = await api.lancerMatching(pid, getToken);
       suivre(pid, job_id);
@@ -134,7 +163,7 @@ function DashboardInner() {
     stopPoll();
     (async () => {
       setPhase("chargement"); setResultats([]); vus.current.clear();
-      setContexteRecherche(null);
+      setContexteRecherche(null); setFiltrePert("toutes");
       // Un ?profil=<id> valide ouvre une recherche sauvegardée ; sinon on
       // résout le profil principal via le cache OU l'API (résilient au
       // localStorage vide). On ne touche jamais au cache depuis une recherche.
@@ -179,6 +208,12 @@ function DashboardInner() {
   }, [profilParam]);
 
   const eligibles = resultats.filter((m) => ELIGIBLE.includes(m.verdict));
+  // Compte par niveau de pertinence + liste filtrée pour la grille.
+  const comptesPert: Record<Exclude<FiltrePert, "toutes">, number> = { forte: 0, moyenne: 0, faible: 0 };
+  eligibles.forEach((m) => { if (m.pertinence && m.pertinence in comptesPert) comptesPert[m.pertinence as keyof typeof comptesPert]++; });
+  const eligiblesAffiches = filtrePert === "toutes"
+    ? eligibles
+    : eligibles.filter((m) => m.pertinence === filtrePert);
   const nonRetenus = resultats.filter((m) => m.verdict === "non_eligible");
   const erreurs = resultats.filter((m) => m.verdict === "erreur");
   // Tout en erreur et rien d'éligible : ne pas faire passer ça pour « aucune correspondance ».
@@ -278,7 +313,23 @@ function DashboardInner() {
       )}
 
       {eligibles.length > 0 && (
-        <h2 className="mb-3 font-display text-lg font-semibold text-ink">Vos subsides</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-display text-lg font-semibold text-ink">Vos subsides</h2>
+          {/* Filtre par pertinence : la liste est déjà triée par pertinence
+              décroissante ; ces pastilles laissent isoler un niveau. On ne les
+              montre qu'à partir de 2 correspondances (sinon rien à filtrer). */}
+          {eligibles.length > 1 && (
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtrer par pertinence">
+              <span className="mr-0.5 text-[13px] text-ink-faint">Pertinence</span>
+              <PastillePert label="Toutes" nombre={eligibles.length}
+                actif={filtrePert === "toutes"} onClick={() => setFiltrePert("toutes")} />
+              {NIVEAUX_PERT.filter((n) => comptesPert[n.valeur] > 0).map((n) => (
+                <PastillePert key={n.valeur} label={n.label} nombre={comptesPert[n.valeur]}
+                  actif={filtrePert === n.valeur} onClick={() => setFiltrePert(n.valeur)} />
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Grille fluide : le stagger d'arrivée remplit la grille sans saut de
@@ -286,13 +337,23 @@ function DashboardInner() {
           ses colonnes). 2 colonnes ≥ 1100px, 3 ≥ 1500px. */}
       <div className="grid grid-cols-1 gap-3 min-[1100px]:grid-cols-2 min-[1500px]:grid-cols-3">
         <AnimatePresence>
-          {eligibles.map((m, i) => (
+          {eligiblesAffiches.map((m, i) => (
             <motion.div key={m.subside.id} layout className="h-full">
               <CompactCard m={m} index={i} />
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
+
+      {/* Filtre actif qui ne laisse rien : on le dit, avec un retour à « Toutes ». */}
+      {eligibles.length > 0 && eligiblesAffiches.length === 0 && (
+        <p className="rounded-[var(--radius-card)] border border-dashed border-border px-4 py-6 text-center text-sm text-ink-soft">
+          Aucune correspondance de pertinence «&nbsp;{filtrePert}&nbsp;».{" "}
+          <button className="font-medium text-accent hover:underline" onClick={() => setFiltrePert("toutes")}>
+            Voir toutes les correspondances
+          </button>
+        </p>
+      )}
 
       {phase === "vide" && eligibles.length === 0 && !analyseRatee && (
         <div className="rounded-[var(--radius-card)] border border-border bg-surface p-10 text-center">
