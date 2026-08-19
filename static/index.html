@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Subsides — Bruxelles</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #fff; --texte: #1a1a1a; --doux: #6b6b6b;
+    --bord: #e2e2dd; --accent: #1f5c8b; --accent-fonce: #16456a;
+    --vert: #1c7a4a; --vert-bg: #e3f5ea;
+    --orange: #a85b00; --orange-bg: #fdeedd;
+    --jaune: #8a6d00; --jaune-bg: #fbf3d5;
+    --rouge: #a32222; --rouge-bg: #fbe4e4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2rem 1.5rem; background: var(--bg); color: var(--texte);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 1240px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  .sous-titre { color: var(--doux); margin: 0 0 1.5rem; font-size: .9rem; }
+
+  .barre { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+  button {
+    background: var(--accent); color: #fff; border: 0; border-radius: 6px;
+    padding: .6rem 1.1rem; font-size: .9rem; font-weight: 600; cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: var(--accent-fonce); }
+  button:disabled { background: #b6b6b6; cursor: not-allowed; }
+  input, select {
+    padding: .5rem .6rem; border: 1px solid var(--bord); border-radius: 6px;
+    font-size: .9rem; background: var(--card); color: var(--texte);
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  #recherche { min-width: 240px; flex: 1; }
+
+  .panneau {
+    background: var(--card); border: 1px solid var(--bord); border-radius: 8px;
+    padding: .9rem 1.1rem; margin-bottom: 1rem; font-size: .9rem;
+  }
+  .panneau[hidden] { display: none; }
+  .progression { height: 6px; background: var(--bord); border-radius: 3px; overflow: hidden; margin-top: .6rem; }
+  .progression > div { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+  .rapport-grille { display: flex; gap: 1.75rem; flex-wrap: wrap; margin-top: .5rem; }
+  .rapport-grille b { display: block; font-size: 1.4rem; font-weight: 700; }
+  .rapport-grille span { color: var(--doux); font-size: .8rem; }
+  details { margin-top: .75rem; }
+  summary { cursor: pointer; color: var(--doux); font-size: .85rem; }
+  details ul { margin: .5rem 0 0; padding-left: 1.2rem; color: var(--rouge); font-size: .82rem; max-height: 220px; overflow-y: auto; }
+
+  .table-wrap { background: var(--card); border: 1px solid var(--bord); border-radius: 8px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  th, td { padding: .65rem .8rem; text-align: left; border-bottom: 1px solid var(--bord); vertical-align: top; }
+  th { background: #fafaf8; font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: var(--doux); white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: #fafaf8; }
+  td a { color: var(--accent); text-decoration: none; font-weight: 500; }
+  td a:hover { text-decoration: underline; }
+  .nowrap { white-space: nowrap; }
+  .muet { color: var(--doux); }
+
+  .badge {
+    display: inline-block; padding: .15rem .5rem; border-radius: 10px;
+    font-size: .72rem; font-weight: 600; white-space: nowrap; margin-right: .25rem;
+  }
+  .b-nouveau { background: var(--vert-bg); color: var(--vert); }
+  .b-modifie { background: var(--orange-bg); color: var(--orange); }
+  .b-verifier { background: var(--jaune-bg); color: var(--jaune); }
+  .b-echec { background: var(--rouge-bg); color: var(--rouge); }
+  /* Zone : badge discret, gris uniforme (le filtre est un outil, pas une alerte) */
+  .zone { display: inline-block; padding: .12rem .45rem; border-radius: 4px;
+          font-size: .72rem; background: #ecebe6; color: #555; white-space: nowrap; }
+  .zone-inconnue { background: #f2f1ec; color: #999; }
+  .chk { font-size: .85rem; color: var(--doux); display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; }
+  tr.expire td { opacity: .45; }
+  tr.expire td a { color: var(--doux); }
+  .exp-tag { font-size: .7rem; color: var(--rouge); }
+  .vide { padding: 2.5rem; text-align: center; color: var(--doux); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Agent Subsides — Région bruxelloise</h1>
+  <p class="sous-titre">
+    Scrape les portails de subsides, extrait les fiches via l'API Claude, et signale
+    les nouveautés. <strong>Vérifie toujours la deadline sur la fiche source avant de candidater.</strong>
+  </p>
+
+  <div class="barre">
+    <button id="btn-scraper">Scraper les subsides</button>
+    <select id="f-source"><option value="">Toutes les sources</option></select>
+    <select id="f-statut">
+      <option value="">Tous les statuts</option>
+      <option value="nouveau">Nouveaux</option>
+      <option value="modifie">Modifiés</option>
+      <option value="a_verifier">À vérifier</option>
+      <option value="echec_extraction">Échecs d'extraction</option>
+    </select>
+    <select id="f-zone" title="Une ASBL bruxelloise est éligible aux zones Bruxelles, FWB et National">
+      <option value="">Toutes les zones</option>
+      <option value="bruxelles">Bruxelles</option>
+      <option value="fwb">Féd. Wallonie-Bruxelles</option>
+      <option value="national">National / Belgique</option>
+      <option value="wallonie">Wallonie</option>
+      <option value="flandre">Flandre</option>
+      <option value="autre">Autre</option>
+      <option value="inconnue">Zone inconnue</option>
+    </select>
+    <select id="f-tri">
+      <option value="deadline">Tri : deadline</option>
+      <option value="titre">Tri : titre</option>
+      <option value="source">Tri : source</option>
+      <option value="recent">Tri : détection récente</option>
+    </select>
+    <label class="chk"><input type="checkbox" id="f-masquer-expires"> Masquer les expirés</label>
+    <input id="recherche" type="search" placeholder="Rechercher dans les titres…" autocomplete="off">
+  </div>
+
+  <div class="panneau" id="p-progression" hidden>
+    <div id="txt-progression">Démarrage…</div>
+    <div class="progression"><div id="barre-progression"></div></div>
+  </div>
+
+  <div class="panneau" id="p-rapport" hidden></div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Titre</th><th>Organisme</th><th>Source</th>
+          <th>Zone</th><th>Deadline</th><th>Montant</th><th>Statut</th>
+        </tr>
+      </thead>
+      <tbody id="corps"><tr><td colspan="7" class="vide">Chargement…</td></tr></tbody>
+    </table>
+  </div>
+  <p class="sous-titre" style="margin-top:.75rem"><span id="compteur"></span></p>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let SUBSIDES = [], SOURCES = {}, POLL = null;
+
+const echapper = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+
+function badges(s) {
+  const out = [];
+  if (s.statut === 'nouveau') out.push('<span class="badge b-nouveau">nouveau</span>');
+  if (s.statut === 'modifie') out.push('<span class="badge b-modifie">modifié</span>');
+  if (s.statut === 'echec_extraction') out.push('<span class="badge b-echec">échec extraction</span>');
+  if (s.a_verifier) out.push('<span class="badge b-verifier">à vérifier</span>');
+  return out.join('') || '<span class="muet">—</span>';
+}
+
+function deadlineCell(s) {
+  if (s.deadline) {
+    const exp = s.expire ? ' <span class="exp-tag">expiré</span>' : '';
+    return `<span class="nowrap">${echapper(s.deadline)}</span>${exp}`;
+  }
+  return `<span class="muet nowrap">${s.permanent ? 'permanent' : '—'}</span>`;
+}
+
+const ZONE_LABEL = {
+  bruxelles: 'Bruxelles', fwb: 'FWB', national: 'National',
+  wallonie: 'Wallonie', flandre: 'Flandre', autre: 'Autre', inconnue: '—',
+};
+function zoneCell(s) {
+  const z = s.zone_categorie || 'inconnue';
+  const cls = z === 'inconnue' ? 'zone zone-inconnue' : 'zone';
+  const titre = s.zone_geographique ? ` title="${echapper(s.zone_geographique)}"` : '';
+  return `<span class="${cls}"${titre}>${ZONE_LABEL[z] || echapper(z)}</span>`;
+}
+
+function rendre() {
+  const q = $('recherche').value.trim().toLowerCase();
+  const lignes = q ? SUBSIDES.filter(s => (s.titre || '').toLowerCase().includes(q)) : SUBSIDES;
+
+  $('compteur').textContent = `${lignes.length} subside${lignes.length > 1 ? 's' : ''} affiché${lignes.length > 1 ? 's' : ''}`
+    + (lignes.length !== SUBSIDES.length ? ` sur ${SUBSIDES.length}` : '');
+
+  if (!lignes.length) {
+    $('corps').innerHTML = `<tr><td colspan="7" class="vide">${
+      SUBSIDES.length ? 'Aucun résultat pour cette recherche.' : 'Aucun subside en base. Lance un scrape.'
+    }</td></tr>`;
+    return;
+  }
+
+  $('corps').innerHTML = lignes.map(s => `
+    <tr class="${s.expire ? 'expire' : ''}">
+      <td><a href="${echapper(s.url_source)}" target="_blank" rel="noopener noreferrer">${echapper(s.titre || '(sans titre)')}</a></td>
+      <td>${s.organisme ? echapper(s.organisme) : '<span class="muet">—</span>'}</td>
+      <td class="nowrap">${echapper(SOURCES[s.source_id] || s.source_id)}</td>
+      <td>${zoneCell(s)}</td>
+      <td>${deadlineCell(s)}</td>
+      <td>${s.montant ? echapper(s.montant) : '<span class="muet">—</span>'}</td>
+      <td>${badges(s)}</td>
+    </tr>`).join('');
+}
+
+async function charger() {
+  const p = new URLSearchParams();
+  if ($('f-statut').value) p.set('statut', $('f-statut').value);
+  if ($('f-source').value) p.set('source', $('f-source').value);
+  if ($('f-zone').value) p.set('zone', $('f-zone').value);
+  if ($('f-masquer-expires').checked) p.set('masquer_expires', 'true');
+  p.set('tri', $('f-tri').value);
+  try {
+    const r = await fetch('/subsides?' + p);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    SUBSIDES = await r.json();
+    rendre();
+  } catch (e) {
+    $('corps').innerHTML = `<tr><td colspan="7" class="vide">Erreur de chargement : ${echapper(e.message)}</td></tr>`;
+  }
+}
+
+async function chargerSources() {
+  try {
+    const src = await (await fetch('/sources')).json();
+    src.forEach(s => { SOURCES[s.id] = s.nom; });
+    $('f-source').innerHTML = '<option value="">Toutes les sources</option>' +
+      src.filter(s => s.actif).map(s => `<option value="${echapper(s.id)}">${echapper(s.nom)}</option>`).join('');
+  } catch { /* le filtre reste sur "toutes" */ }
+}
+
+function afficherRapport(rapport, erreurs) {
+  if (!rapport) return;
+  const chiffre = (n, label) => `<div><b>${n}</b><span>${label}</span></div>`;
+  const parSource = (rapport.sources || []).map(s =>
+    `<li><strong>${echapper(s.nom)}</strong> — ${s.statut} · ${s.traitees} traitée(s), `
+    + `${s.nouveaux} nouveau(x), ${s.modifies} modifié(s), ${s.echecs} échec(s)`
+    + (s.strategie_utilisee ? ` · stratégie : <code>${echapper(s.strategie_utilisee)}</code>` : '')
+    + `</li>`).join('');
+
+  $('p-rapport').innerHTML = `
+    <strong>Rapport du scrape</strong> — ${rapport.duree_secondes}s · modèle <code>${echapper(rapport.modele || '?')}</code>
+    <div class="rapport-grille">
+      ${chiffre(rapport.total_nouveaux, 'nouveaux')}
+      ${chiffre(rapport.total_modifies, 'modifiés')}
+      ${chiffre(rapport.total_inchanges, 'inchangés')}
+      ${chiffre(rapport.total_a_verifier, 'à vérifier')}
+      ${chiffre(rapport.total_echecs, 'échecs')}
+      ${chiffre(rapport.tokens_in + rapport.tokens_out, 'tokens')}
+      ${chiffre('$' + (rapport.cout_estime_usd ?? 0), 'coût estimé')}
+    </div>
+    <ul style="margin:.75rem 0 0;padding-left:1.2rem;font-size:.85rem">${parSource}</ul>
+    ${erreurs?.length ? `<details><summary>${erreurs.length} avertissement(s) / erreur(s)</summary>
+      <ul>${erreurs.map(e => `<li>${echapper(e)}</li>`).join('')}</ul></details>` : ''}`;
+  $('p-rapport').hidden = false;
+}
+
+async function sonder(jobId) {
+  let j;
+  try {
+    const r = await fetch('/status/' + jobId);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    j = await r.json();
+  } catch (e) {
+    $('txt-progression').textContent = 'Perte de contact avec le job : ' + e.message;
+    clearInterval(POLL); POLL = null; $('btn-scraper').disabled = false;
+    return;
+  }
+
+  const fait = j.fiches_traitees, total = j.fiches_total_estime;
+  $('txt-progression').textContent = j.source_en_cours
+    ? `Scrape en cours — ${j.source_en_cours} · ${fait}${total ? ' / ' + total : ''} fiche(s)`
+    : `Scrape en cours — ${fait} fiche(s) traitée(s)`;
+  $('barre-progression').style.width = total ? Math.min(100, fait / total * 100) + '%' : '15%';
+
+  if (j.statut === 'running') return;
+
+  clearInterval(POLL); POLL = null;
+  $('btn-scraper').disabled = false;
+  $('p-progression').hidden = true;
+  afficherRapport(j.rapport, j.erreurs);
+  if (j.statut === 'error') {
+    $('p-rapport').innerHTML = `<strong style="color:var(--rouge)">Le job a échoué.</strong>
+      <ul style="font-size:.85rem">${(j.erreurs || []).map(e => `<li>${echapper(e)}</li>`).join('')}</ul>`;
+    $('p-rapport').hidden = false;
+  }
+  charger();
+}
+
+$('btn-scraper').onclick = async () => {
+  $('btn-scraper').disabled = true;
+  $('p-rapport').hidden = true;
+  $('p-progression').hidden = false;
+  $('txt-progression').textContent = 'Démarrage…';
+  $('barre-progression').style.width = '0';
+  try {
+    const r = await fetch('/scrape', { method: 'POST' });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || ('HTTP ' + r.status));
+    POLL = setInterval(() => sonder(data.job_id), 2000);
+    sonder(data.job_id);
+  } catch (e) {
+    $('txt-progression').textContent = 'Impossible de lancer le scrape : ' + e.message;
+    $('btn-scraper').disabled = false;
+  }
+};
+
+['f-statut', 'f-source', 'f-zone', 'f-tri', 'f-masquer-expires'].forEach(id => $(id).onchange = charger);
+$('recherche').oninput = rendre;
+
+chargerSources().then(charger);
+</script>
+</body>
+</html>

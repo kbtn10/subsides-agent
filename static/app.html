@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mes subsides — Bruxelles</title>
+<style>
+  :root {
+    --bg:#f7f7f5; --card:#fff; --texte:#1a1a1a; --doux:#6b6b6b; --bord:#e2e2dd;
+    --accent:#1f5c8b; --accent-fonce:#16456a;
+    --vert:#1c7a4a; --vert-bg:#e3f5ea; --orange:#a85b00; --orange-bg:#fdeedd;
+    --gris:#767676; --gris-bg:#eeede9; --rouge:#a32222; --rouge-bg:#fbe4e4;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--texte);
+    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  main { max-width:820px; margin:0 auto; padding:1.5rem 1rem 4rem; }
+  h1 { font-size:1.4rem; margin:0 0 .3rem; }
+  h2 { font-size:1.05rem; margin:1.4rem 0 .6rem; }
+  .doux { color:var(--doux); }
+  a { color:var(--accent); }
+  button { font:inherit; cursor:pointer; border:0; border-radius:8px; padding:.7rem 1.15rem;
+    font-weight:600; background:var(--accent); color:#fff; }
+  button:hover:not(:disabled){ background:var(--accent-fonce); }
+  button:disabled{ background:#b6b6b6; cursor:not-allowed; }
+  button.ghost { background:transparent; color:var(--accent); border:1px solid var(--bord); }
+  button.ghost:hover{ background:#eef3f7; }
+  label { display:block; font-weight:600; font-size:.9rem; margin:.9rem 0 .3rem; }
+  input[type=text], input[type=search], select, textarea {
+    width:100%; padding:.6rem .7rem; border:1px solid var(--bord); border-radius:8px;
+    font:inherit; background:var(--card); color:var(--texte); }
+  textarea { min-height:80px; resize:vertical; }
+  .cases { display:flex; flex-wrap:wrap; gap:.4rem .5rem; }
+  .cases label { display:inline-flex; align-items:center; gap:.35rem; font-weight:400;
+    font-size:.9rem; margin:0; padding:.35rem .6rem; border:1px solid var(--bord);
+    border-radius:20px; background:var(--card); cursor:pointer; }
+  .cases input { accent-color:var(--accent); }
+  .cases label:has(input:checked){ background:#e8f0f7; border-color:var(--accent); }
+  .panneau { background:var(--card); border:1px solid var(--bord); border-radius:12px;
+    padding:1.1rem 1.15rem; margin-bottom:1rem; }
+
+  .bandeau { background:#eef3f7; border:1px solid #d5e2ec; border-radius:12px;
+    padding:.9rem 1.1rem; margin-bottom:1rem; font-size:.95rem; }
+  .barre-prog { height:6px; background:var(--bord); border-radius:3px; overflow:hidden; margin-top:.6rem; }
+  .barre-prog>div { height:100%; width:0; background:var(--accent); transition:width .4s; }
+  .compteur { font-size:.85rem; color:var(--doux); margin:.5rem 0; }
+
+  .carte { background:var(--card); border:1px solid var(--bord); border-radius:12px;
+    padding:1rem 1.1rem; margin-bottom:.8rem; border-left:4px solid var(--gris); }
+  .carte.v-probablement_eligible { border-left-color:var(--vert); }
+  .carte.v-eligible_sous_conditions { border-left-color:var(--orange); }
+  .carte-tete { display:flex; justify-content:space-between; gap:.6rem; align-items:flex-start; flex-wrap:wrap; }
+  .carte-titre { font-weight:600; font-size:1.03rem; }
+  .carte-titre a { text-decoration:none; }
+  .carte-titre a:hover { text-decoration:underline; }
+  .carte-meta { font-size:.85rem; color:var(--doux); margin:.15rem 0 .5rem; }
+  .verdict { display:inline-block; padding:.2rem .55rem; border-radius:20px; font-size:.75rem; font-weight:700; white-space:nowrap; }
+  .verdict.v-probablement_eligible { background:var(--vert-bg); color:var(--vert); }
+  .verdict.v-eligible_sous_conditions { background:var(--orange-bg); color:var(--orange); }
+  .verdict.v-non_eligible { background:var(--gris-bg); color:var(--gris); }
+  .verdict.v-erreur { background:var(--rouge-bg); color:var(--rouge); }
+  .dl { font-size:.82rem; }
+  .dl.urgent { color:var(--rouge); font-weight:700; }
+  .pert { font-size:.72rem; color:var(--doux); }
+  .checks { margin:.5rem 0 0; padding:0; list-style:none; font-size:.87rem; }
+  .checks li { padding:.15rem 0 .15rem 1.3rem; position:relative; }
+  .checks li.av::before { content:"\26A0"; position:absolute; left:0; color:var(--orange); }
+  .checks li.ok::before { content:"\2713"; position:absolute; left:0; color:var(--vert); }
+  .justif { font-size:.88rem; color:#333; margin:.5rem 0 0; }
+  details.replie summary { cursor:pointer; font-weight:600; color:var(--doux); margin:1rem 0 .5rem; }
+
+  .actions { display:flex; gap:.6rem; flex-wrap:wrap; margin:1.4rem 0; }
+  .pied { font-size:.82rem; color:var(--doux); border-top:1px solid var(--bord); padding-top:1rem; margin-top:2rem; }
+  .pied a { color:var(--doux); }
+  .veille { background:var(--vert-bg); color:var(--vert); border-radius:10px; padding:.7rem .9rem;
+    font-size:.9rem; margin:1rem 0; }
+  .hidden { display:none; }
+  .err { color:var(--rouge); font-size:.88rem; }
+  @media (max-width:520px){ main{ padding:1rem .8rem 3rem; } .actions button{ flex:1; } }
+</style>
+</head>
+<body>
+<main>
+  <!-- ============ ONBOARDING ============ -->
+  <section id="onboarding" class="hidden">
+    <h1>Trouvez vos subsides</h1>
+    <p class="doux">Décrivez votre ASBL une fois. On vous montre les subsides bruxellois
+      auxquels vous êtes probablement éligible, et on garde l'œil ouvert pour vous.</p>
+
+    <div id="etape-ident" class="panneau">
+      <label for="ident">Choisissez un identifiant (pour retrouver vos profils)</label>
+      <input id="ident" type="text" placeholder="ex : mon-asbl" autocomplete="off">
+      <p class="doux" style="font-size:.82rem">Pas de mot de passe pour l'instant — un simple pseudo local.</p>
+      <div style="margin-top:.8rem"><button id="btn-ident">Continuer</button></div>
+      <p id="err-ident" class="err"></p>
+    </div>
+
+    <form id="form-profil" class="hidden">
+      <div class="panneau">
+        <label for="nom">Nom de l'ASBL *</label>
+        <input id="nom" type="text" required autocomplete="off">
+        <label for="commune">Commune du siège *</label>
+        <select id="commune"></select>
+        <label for="langue">Langue de fonctionnement</label>
+        <select id="langue">
+          <option value="">— non précisé —</option>
+          <option value="fr">Français</option>
+          <option value="nl">Néerlandais</option>
+          <option value="bilingue">Bilingue</option>
+        </select>
+      </div>
+
+      <div class="panneau">
+        <label>Secteurs d'activité</label>
+        <div class="cases" id="secteurs"></div>
+        <label for="publics">Publics cibles (séparés par des virgules)</label>
+        <input id="publics" type="text" placeholder="ex : jeunes, seniors, personnes en situation de handicap" autocomplete="off">
+      </div>
+
+      <div class="panneau">
+        <label for="budget">Ordre de grandeur du budget annuel</label>
+        <select id="budget">
+          <option value="">— non précisé —</option>
+          <option value="moins_50k">Moins de 50 000 €</option>
+          <option value="50k_250k">50 000 – 250 000 €</option>
+          <option value="250k_1M">250 000 € – 1 M€</option>
+          <option value="plus_1M">Plus d'1 M€</option>
+          <option value="inconnu">Je ne sais pas</option>
+        </select>
+        <label for="agrements">Agréments / reconnaissances (séparés par des virgules)</label>
+        <input id="agrements" type="text" placeholder="ex : éducation permanente, agrément COCOF" autocomplete="off">
+        <label for="desc">Décrivez votre activité en quelques mots</label>
+        <textarea id="desc" placeholder="Ce que fait votre ASBL, ses projets, son public…"></textarea>
+      </div>
+
+      <p id="err-profil" class="err"></p>
+      <div class="actions">
+        <button type="submit" id="btn-profil">Voir mes subsides</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ============ DASHBOARD ============ -->
+  <section id="dashboard" class="hidden">
+    <h1 id="dash-titre">Vos subsides</h1>
+    <div id="bandeau" class="bandeau"></div>
+    <div class="compteur" id="compteur"></div>
+
+    <div id="veille" class="veille hidden"></div>
+
+    <div id="cartes"></div>
+
+    <details class="replie hidden" id="bloc-non-eligibles">
+      <summary id="summary-non-eligibles">Non éligibles</summary>
+      <div id="cartes-non-eligibles"></div>
+    </details>
+
+    <div class="actions">
+      <button id="btn-relancer" class="ghost">Relancer l'analyse</button>
+      <button id="btn-modifier" class="ghost">Modifier mon profil</button>
+      <button id="btn-nouvelle" class="ghost">Nouvelle recherche</button>
+    </div>
+    <p class="pied">
+      <span id="maj"></span> · <a href="/">Vue admin</a> ·
+      <a href="#" id="lien-supprimer">Supprimer mes données</a>
+    </p>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const API = {
+  async post(url, body){ const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});
+    if(!r.ok) throw new Error((await r.json().catch(()=>({}))).detail || ('HTTP '+r.status)); return r.json(); },
+  async get(url){ const r = await fetch(url); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); },
+  async del(url){ const r = await fetch(url,{method:'DELETE'}); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); },
+};
+const LS = {
+  get user(){ return JSON.parse(localStorage.getItem('subv_user')||'null'); },
+  set user(v){ localStorage.setItem('subv_user', JSON.stringify(v)); },
+  get profil(){ return JSON.parse(localStorage.getItem('subv_profil')||'null'); },
+  set profil(v){ localStorage.setItem('subv_profil', JSON.stringify(v)); },
+};
+const ech = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const SECTEURS = [
+  ['culture','Culture'],['jeunesse','Jeunesse'],['sport','Sport'],['social_sante','Social / Santé'],
+  ['cohesion_sociale','Cohésion sociale'],['education_permanente','Éducation permanente'],
+  ['egalite_chances','Égalité des chances'],['environnement','Environnement'],
+  ['cooperation','Coopération'],['media','Média'],['recherche','Recherche'],['autre','Autre'],
+];
+const COMMUNES = ["Anderlecht","Auderghem","Berchem-Sainte-Agathe","Bruxelles-Ville","Etterbeek",
+  "Evere","Forest","Ganshoren","Ixelles","Jette","Koekelberg","Molenbeek-Saint-Jean","Saint-Gilles",
+  "Saint-Josse-ten-Noode","Schaerbeek","Uccle","Watermael-Boitsfort","Woluwe-Saint-Lambert",
+  "Woluwe-Saint-Pierre","Autre / hors Bruxelles"];
+const VERDICT_LABEL = { probablement_eligible:'Probablement éligible', eligible_sous_conditions:'Sous conditions',
+  non_eligible:'Non éligible', erreur:'À réessayer' };
+
+// ---------- vues ----------
+function montrer(vue){ ['onboarding','dashboard'].forEach(v=>$(v).classList.toggle('hidden', v!==vue)); }
+
+function initForm(){
+  $('commune').innerHTML = COMMUNES.map(c=>`<option>${ech(c)}</option>`).join('');
+  $('secteurs').innerHTML = SECTEURS.map(([v,l])=>
+    `<label><input type="checkbox" value="${v}"> ${ech(l)}</label>`).join('');
+}
+function lireProfil(){
+  const secteurs = [...$('secteurs').querySelectorAll('input:checked')].map(i=>i.value);
+  const liste = v => v.split(',').map(s=>s.trim()).filter(Boolean);
+  return {
+    nom:$('nom').value.trim(), commune_siege:$('commune').value,
+    langue:$('langue').value||null, secteurs,
+    publics_cibles:liste($('publics').value), budget_categorie:$('budget').value||null,
+    agrements:liste($('agrements').value), description_libre:$('desc').value.trim()||null,
+  };
+}
+function remplirForm(p){
+  $('nom').value=p.nom||''; $('commune').value=p.commune_siege||COMMUNES[0];
+  $('langue').value=p.langue||''; $('budget').value=p.budget_categorie||'';
+  $('publics').value=(p.publics_cibles||[]).join(', ');
+  $('agrements').value=(p.agrements||[]).join(', '); $('desc').value=p.description_libre||'';
+  $('secteurs').querySelectorAll('input').forEach(i=>i.checked=(p.secteurs||[]).includes(i.value));
+}
+
+// ---------- onboarding ----------
+$('btn-ident').onclick = async () => {
+  const ident = $('ident').value.trim();
+  if(!ident){ $('err-ident').textContent='Choisissez un identifiant.'; return; }
+  $('btn-ident').disabled = true; $('err-ident').textContent='';
+  try {
+    const u = await API.post('/users', {identifiant: ident});
+    LS.user = u;
+    $('etape-ident').classList.add('hidden');
+    $('form-profil').classList.remove('hidden');
+    $('nom').focus();
+  } catch(e){ $('err-ident').textContent = 'Erreur : '+e.message; }
+  finally { $('btn-ident').disabled = false; }
+};
+
+let MODE_EDITION = null; // profil_id si on modifie, sinon null (création)
+$('form-profil').onsubmit = async (ev) => {
+  ev.preventDefault();
+  const data = lireProfil();
+  if(!data.nom || !data.commune_siege){ $('err-profil').textContent='Nom et commune sont requis.'; return; }
+  $('btn-profil').disabled = true; $('err-profil').textContent='';
+  try {
+    let profil;
+    if(MODE_EDITION){ profil = await API.put('/profils/'+MODE_EDITION, data); }
+    else { profil = await API.post('/profils', {...data, user_id: LS.user.id}); }
+    LS.profil = profil; MODE_EDITION = null;
+    await lancerEtAfficher(profil.id);
+  } catch(e){ $('err-profil').textContent = 'Erreur : '+e.message; }
+  finally { $('btn-profil').disabled = false; }
+};
+// PUT helper
+API.put = async (url, body) => { const r = await fetch(url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok) throw new Error((await r.json().catch(()=>({}))).detail||('HTTP '+r.status)); return r.json(); };
+
+// ---------- dashboard : lancement + streaming ----------
+let POLL = null, TOTAL_BASE = 0;
+
+async function lancerEtAfficher(profilId){
+  montrer('dashboard');
+  resetDashboard();
+  try {
+    const maj = await API.get('/derniere-maj'); TOTAL_BASE = maj.total_subsides||0;
+    $('maj').innerHTML = majTexte(maj.fin);
+  } catch {}
+  let job;
+  try { job = await API.post('/matching/'+profilId, {}); }
+  catch(e){
+    if(String(e.message).includes('409')){ // un matching tourne déjà : on affiche l'existant
+      await afficherResultatsFinaux(profilId); return;
+    }
+    $('bandeau').innerHTML = '<span class="err">Impossible de lancer l\'analyse : '+ech(e.message)+'</span>'; return;
+  }
+  suivre(job.job_id, profilId);
+}
+
+function resetDashboard(){
+  $('cartes').innerHTML=''; $('cartes-non-eligibles').innerHTML='';
+  $('bloc-non-eligibles').classList.add('hidden'); $('veille').classList.add('hidden');
+  RENDUS.clear();
+}
+function majTexte(fin){
+  if(!fin) return 'Aucun scrape enregistré';
+  const h = Math.round((Date.now()-new Date(fin).getTime())/3600000);
+  return 'Données à jour il y a '+(h<1?'moins d\'une heure':(h+' h'));
+}
+
+const RENDUS = new Set();
+function suivre(jobId, profilId){
+  clearInterval(POLL);
+  const tick = async () => {
+    let s;
+    try { s = await API.get('/matching/status/'+jobId); }
+    catch(e){ clearInterval(POLL); $('bandeau').innerHTML='<span class="err">Perte de contact : '+ech(e.message)+'</span>'; return; }
+
+    const cand = s.total_candidats;
+    if(s.statut==='running' && !cand){
+      $('bandeau').innerHTML = `<strong>${TOTAL_BASE}</strong> subsides en base → analyse de votre profil en cours…`;
+    } else {
+      $('bandeau').innerHTML = `<strong>${TOTAL_BASE}</strong> subsides → <strong>${cand}</strong> correspondent à votre zone et votre type` +
+        (s.statut==='running' ? ' → analyse en cours…' : '.');
+    }
+    // stream : afficher les nouveaux résultats
+    for(const m of s.resultats){ if(!RENDUS.has(m.subside.id)){ RENDUS.add(m.subside.id); ajouterCarte(m); } }
+    $('compteur').textContent = `${s.traites}/${cand||'…'} analysés · ${s.matchs} correspondance${s.matchs>1?'s':''}`;
+    if(s.statut==='running' && s.resultats.length){
+      const dernier = s.resultats[s.resultats.length-1];
+      $('compteur').textContent += ` · Analyse : ${dernier.subside.titre} (${dernier.subside.source_id})`;
+    }
+
+    if(s.statut!=='running'){ clearInterval(POLL); atterrissage(s, profilId); }
+  };
+  tick(); POLL = setInterval(tick, 1500);
+}
+
+function carteHTML(m){
+  const s = m.subside, v = m.verdict;
+  const jours = s.deadline ? Math.ceil((new Date(s.deadline)-Date.now())/86400000) : null;
+  const dl = s.deadline
+    ? `<span class="dl ${jours!==null&&jours<30?'urgent':''}">Deadline : ${ech(s.deadline)}${jours!==null&&jours>=0?` (${jours} j)`:''}</span>`
+    : `<span class="dl doux">${s.permanent?'Permanent':'Deadline non précisée'}</span>`;
+  const av = (m.criteres_a_verifier||[]).map(c=>`<li class="av">${ech(c)}</li>`).join('');
+  const ok = v==='probablement_eligible' ? (m.criteres_satisfaits||[]).slice(0,2).map(c=>`<li class="ok">${ech(c)}</li>`).join('') : '';
+  const nonok = (m.criteres_non_satisfaits||[]).map(c=>`<li class="av">${ech(c)}</li>`).join('');
+  return `<div class="carte v-${v}">
+    <div class="carte-tete">
+      <div class="carte-titre"><a href="${ech(s.url_source)}" target="_blank" rel="noopener">${ech(s.titre||'(sans titre)')}</a></div>
+      <span class="verdict v-${v}">${ech(VERDICT_LABEL[v]||v)}</span>
+    </div>
+    <div class="carte-meta">${ech(s.organisme||s.source_id)} · ${ech(s.source_id)} ${s.montant?('· '+ech(s.montant)):''}</div>
+    ${dl} <span class="pert">— pertinence ${ech(m.pertinence||'?')}</span>
+    ${m.justification?`<p class="justif">${ech(m.justification)}</p>`:''}
+    ${(av||ok||nonok)?`<ul class="checks">${ok}${av}${nonok}</ul>`:''}
+  </div>`;
+}
+function ajouterCarte(m){
+  if(m.verdict==='non_eligible'){
+    $('cartes-non-eligibles').insertAdjacentHTML('beforeend', carteHTML(m));
+    $('bloc-non-eligibles').classList.remove('hidden');
+    const n = $('cartes-non-eligibles').childElementCount;
+    $('summary-non-eligibles').textContent = `Non éligibles (${n})`;
+  } else if(m.verdict==='erreur'){
+    // discret : on ne l'affiche pas en avant, on le met en bas des non-éligibles
+    $('cartes-non-eligibles').insertAdjacentHTML('beforeend', carteHTML(m));
+    $('bloc-non-eligibles').classList.remove('hidden');
+  } else {
+    $('cartes').insertAdjacentHTML('beforeend', carteHTML(m));
+  }
+}
+
+async function afficherResultatsFinaux(profilId){
+  const res = await API.get('/matchings/'+profilId);
+  resetDashboard();
+  const maj = await API.get('/derniere-maj').catch(()=>({}));
+  TOTAL_BASE = maj.total_subsides||0; $('maj').innerHTML = majTexte(maj.fin);
+  for(const m of res){ RENDUS.add(m.subside.id); ajouterCarte(m); }
+  atterrissage({resultats:res, matchs:res.filter(m=>['probablement_eligible','eligible_sous_conditions'].includes(m.verdict)).length,
+    traites:res.length, total_candidats:res.length, statut:'done'}, profilId);
+}
+
+function atterrissage(s, profilId){
+  const forts = s.resultats.filter(m=>m.verdict==='probablement_eligible').length;
+  const cond = s.resultats.filter(m=>m.verdict==='eligible_sous_conditions').length;
+  // 0.1 : deadlines < 60 j comptées UNIQUEMENT parmi les correspondances éligibles.
+  const eligibles = s.resultats.filter(m=>['probablement_eligible','eligible_sous_conditions'].includes(m.verdict));
+  const proches = eligibles.filter(m=>{
+    const d=m.subside.deadline; if(!d) return false;
+    const j=(new Date(d)-Date.now())/86400000; return j>=0 && j<=60;
+  }).length;
+
+  if(forts+cond===0){
+    $('bandeau').innerHTML = `<strong>Aucune correspondance forte aujourd'hui.</strong> ` +
+      `Nous avons analysé ${s.traites} subside(s) de votre zone. ` +
+      (cond? `Regardez les pistes « sous conditions » ci-dessous.` : `Votre veille reste active : les nouveaux appels correspondants apparaîtront ici.`);
+  } else {
+    $('bandeau').innerHTML = `<strong>${forts+cond}</strong> subside(s) correspondent à votre profil` +
+      (proches?` · <strong>${proches}</strong> deadline(s) dans les 60 jours`:'') + '.';
+  }
+  $('compteur').textContent = `${s.traites} analysés · ${s.matchs} correspondance${s.matchs>1?'s':''}`;
+  $('veille').textContent = '🔔 Votre veille est active — les nouveaux appels correspondant à votre profil apparaîtront ici.';
+  $('veille').classList.remove('hidden');
+  if(s.cout_estime_usd) $('compteur').textContent += ` · coût ~$${s.cout_estime_usd}`;
+}
+
+// ---------- boutons ----------
+$('btn-relancer').onclick = () => { if(LS.profil) lancerEtAfficher(LS.profil.id); };
+$('btn-modifier').onclick = () => {
+  MODE_EDITION = LS.profil.id; remplirForm(LS.profil);
+  $('etape-ident').classList.add('hidden'); $('form-profil').classList.remove('hidden');
+  $('btn-profil').textContent = 'Enregistrer et ré-analyser';
+  montrer('onboarding');
+};
+$('btn-nouvelle').onclick = () => {
+  MODE_EDITION = 'recherche'; $('form-profil').reset();
+  $('secteurs').querySelectorAll('input').forEach(i=>i.checked=false);
+  $('etape-ident').classList.add('hidden'); $('form-profil').classList.remove('hidden');
+  $('btn-profil').textContent = 'Rechercher (sans sauvegarder)';
+  montrer('onboarding');
+};
+// recherche éphémère : intercepte la soumission quand MODE_EDITION==='recherche'
+const submitOriginal = $('form-profil').onsubmit;
+$('form-profil').onsubmit = async (ev) => {
+  if(MODE_EDITION==='recherche'){
+    ev.preventDefault();
+    const data = lireProfil();
+    if(!data.nom || !data.commune_siege){ $('err-profil').textContent='Nom et commune sont requis.'; return; }
+    $('btn-profil').disabled=true; $('err-profil').textContent='';
+    try {
+      const r = await API.post('/matching/recherche', {...data, user_id: LS.user?.id});
+      LS.profil = {id:r.profil_id, ...data, ephemere:true};
+      MODE_EDITION=null; montrer('dashboard'); resetDashboard();
+      const maj = await API.get('/derniere-maj').catch(()=>({})); TOTAL_BASE=maj.total_subsides||0;
+      $('maj').innerHTML = majTexte(maj.fin);
+      suivre(r.job_id, r.profil_id);
+    } catch(e){ $('err-profil').textContent='Erreur : '+e.message; }
+    finally { $('btn-profil').disabled=false; }
+    return;
+  }
+  return submitOriginal(ev);
+};
+
+$('lien-supprimer').onclick = async (e) => {
+  e.preventDefault();
+  if(!LS.profil || !confirm('Supprimer votre profil et tous ses résultats ? (irréversible)')) return;
+  try { await API.del('/profils/'+LS.profil.id); } catch {}
+  localStorage.removeItem('subv_profil');
+  location.reload();
+};
+
+// ---------- démarrage ----------
+initForm();
+(async () => {
+  if(LS.user && LS.profil){
+    // utilisateur connu : dashboard direct avec résultats existants, sinon relance
+    try {
+      const res = await API.get('/matchings/'+LS.profil.id);
+      montrer('dashboard');
+      if(res.length){ await afficherResultatsFinaux(LS.profil.id); }
+      else { lancerEtAfficher(LS.profil.id); }
+    } catch { lancerEtAfficher(LS.profil.id); }
+  } else {
+    montrer('onboarding');
+    if(LS.user){ $('etape-ident').classList.add('hidden'); $('form-profil').classList.remove('hidden'); }
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+/*
+  Direction artistique (lot 4a) — chaleureux, précis, généreux en espace.
+  Le produit vend de la confiance à des coordinateur·rice·s d'ASBL non-techniques.
+  Pas de dark mode : l'app est claire, point (color-scheme: light).
+*/
+
+:root {
+  color-scheme: light; /* empêche l'assombrissement auto par l'OS / le navigateur */
+
+  --bg: #faf9f7;          /* fond de page : blanc cassé chaud */
+  --surface: #ffffff;      /* cartes */
+  --surface-2: #f5f3ef;    /* zones secondaires */
+  --ink: #1a1815;          /* quasi-noir chaud */
+  --ink-soft: #6b645c;     /* texte secondaire */
+  --ink-faint: #9a938a;    /* texte tertiaire */
+  --border: #eae6df;       /* bordures chaudes subtiles */
+  --border-strong: #ddd8cf;
+
+  --accent: #1e6b4e;       /* vert profond confiant */
+  --accent-hover: #185a41;
+  --accent-soft: #e7f1ec;  /* fond pastille verte */
+  --accent-ring: #1e6b4e33;
+
+  --amber: #92500e;        /* ambre chaud (sous conditions) — texte AA sur --amber-soft */
+  --amber-soft: #fbf1e3;
+  --neutral: #6b655f;      /* non retenu — gris doux, jamais rouge */
+  --neutral-soft: #f0eee9;
+  --danger: #9a3325;       /* réservé aux erreurs techniques, pas aux verdicts */
+
+  --shadow-soft: 0 1px 2px rgba(26,24,21,.04), 0 8px 24px -12px rgba(26,24,21,.10);
+  --shadow-lift: 0 2px 4px rgba(26,24,21,.05), 0 16px 40px -16px rgba(26,24,21,.16);
+
+  /* Émis comme vraies variables CSS (référencées via rounded-[var(--radius-card)]).
+     @theme inline ne les exposerait pas sur :root, d'où leur présence ici. */
+  --radius-card: 14px;
+  --radius-ctrl: 9px;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-neutral: var(--neutral);
+  --color-neutral-soft: var(--neutral-soft);
+  --color-danger: var(--danger);
+
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-inter);
+
+  --radius-card: 14px;
+  --radius-ctrl: 9px;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3, .font-display {
+    font-family: var(--font-fraunces), Georgia, serif;
+    letter-spacing: -0.01em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+/* Respect de prefers-reduced-motion (Framer Motion le respecte aussi via hook). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
