@@ -94,13 +94,51 @@ def test_nouvelles_actives_avec_fiches():
 
 
 def test_ids_registre_actives_referencent_config():
-    """Chaque entrée 'active' du registre doit pointer une source active en config."""
+    """Chaque entrée 'active' du registre pointe une source de config active —
+    sauf brulocalis, active en tant qu'INDEX de titres (script dédié), dont la
+    source de config reste actif=False (le pipeline normal ne la crawle pas)."""
     from config.registre import REGISTRE
     from config.sources import get_source
     for e in REGISTRE:
         if e["statut"] == "active" and e.get("config_id"):
             s = get_source(e["config_id"])
-            assert s is not None and s["actif"] is True, e["id"]
+            assert s is not None, e["id"]
+            if e["id"] != "brulocalis":
+                assert s["actif"] is True, e["id"]
+
+
+# --- Recherche web (index Brulocalis -> source officielle) ------------------
+
+def test_recherche_web_sans_cle(monkeypatch):
+    """Sans SEARCH_API_KEY : aucune recherche, aucune URL inventée -> None."""
+    monkeypatch.delenv("SEARCH_API_KEY", raising=False)
+    from scraper import recherche_web
+    assert recherche_web.chercher_officiel("Un appel à projets") is None
+
+
+def test_recherche_web_filtre_officiels(monkeypatch):
+    """Ne retient qu'un domaine officiel belge (.brussels/.be), pas l'index ni
+    le bruit social, et pas une racine de domaine."""
+    monkeypatch.setenv("SEARCH_API_KEY", "x")
+    from scraper import recherche_web
+    faux = [
+        "https://fr.wikipedia.org/wiki/Subside",
+        "https://www.brulocalis.brussels/fr/subsides/xyz",   # l'index : exclu
+        "https://www.facebook.com/appel",                     # social : exclu
+        "https://servicepublic.brussels/",                    # racine : exclue
+        "https://servicepublic.brussels/appel-a-projets-region-jeune/",  # bonne fiche
+    ]
+    monkeypatch.setattr(recherche_web, "_brave", lambda q, cle, n=8: faux)
+    url = recherche_web.chercher_officiel("Région jeune et dynamique")
+    assert url == "https://servicepublic.brussels/appel-a-projets-region-jeune/"
+
+
+def test_recherche_web_aucun_officiel(monkeypatch):
+    monkeypatch.setenv("SEARCH_API_KEY", "x")
+    from scraper import recherche_web
+    monkeypatch.setattr(recherche_web, "_brave",
+                        lambda q, cle, n=8: ["https://wikipedia.org/x", "https://monasbl.be/y"])
+    assert recherche_web.chercher_officiel("Truc") is None
 
 
 # --- Détection des quasi-doublons inter-sources (garde-fou lot 9) -----------

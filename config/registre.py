@@ -70,13 +70,14 @@ REGISTRE = [
      "raison": "robots OK, mais un appel UNIQUE en page + formulaires PDF — pas de "
                "multi-fiches. À traiter comme fiche unique (stratégie dédiée)."},
     {"id": "brulocalis", "config_id": "brulocalis",
-     "nom": "Brulocalis — Base de données subsides communaux",
+     "nom": "Brulocalis — Index de titres (→ sources officielles)",
      "url_entree": "https://www.brulocalis.brussels/fr/subsides", "niveau": "regional",
-     "langue": "fr", "statut": "a_evaluer",
-     "raison": "Anti-bot BunkerWeb (robots.txt lui-même renvoie un challenge) ; "
-               "Playwright honnête passe le challenge, mais le site signale "
-               "activement refuser les bots — décision d'exploitation au propriétaire "
-               "(contact/partenariat, cf. README)."},
+     "langue": "fr", "statut": "active",
+     "raison": "Anti-bot BunkerWeb : utilisée UNIQUEMENT comme index de titres "
+               "(Playwright) — on ne crawle pas son contenu. Chaque titre -> "
+               "recherche de la fiche OFFICIELLE (source primaire) -> extraction. "
+               "Fiches ingérées TOUJOURS « à vérifier ». Script manuel "
+               "scripts/brulocalis_index.py (SEARCH_API_KEY requis)."},
 
     # ---- Différées (non codées / non exploitables en l'état) ----
     {"id": "wallonie", "config_id": "wallonie",

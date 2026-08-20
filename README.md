@@ -256,13 +256,21 @@ reconnue côté subsides communaux. Recon : le site est protégé par **BunkerWe
 while we check if you are a Human », meta refresh 30s, `meta robots noindex,
 nofollow`), donc aucune politique robots lisible ; `httpx` est bloqué. Un
 **unique** essai Playwright avec notre UA honnête (outil standard, pas un
-contournement) **a passé** le challenge et rendu le vrai contenu. Conduite : le
-site signale **activement** qu'il ne veut pas de bots → **nous ne crawlons pas**
-dans ce lot. La décision d'exploitation durable appartient au propriétaire.
-**Voie recommandée** : Brulocalis est aussi une *carte des pouvoirs
-subsidiants* — ses sources primaires (communes, région) sont scrapables
-directement, et un **contact/partenariat** avec Brulocalis est la voie durable
-(comme envisagé pour KBS).
+contournement) **a passé** le challenge et rendu le vrai contenu. Le site
+signale **activement** qu'il ne veut pas de crawlers de **contenu**.
+
+**Approche retenue (décision propriétaire, 20/08/2026) : Brulocalis comme INDEX
+de titres, jamais comme source de contenu.** `scripts/brulocalis_index.py`
+crawle Brulocalis (Playwright) uniquement pour les **titres** des subsides,
+puis pour chaque titre cherche la **fiche officielle** (source primaire :
+commune, région, FWB…) via une API de recherche (`SEARCH_API_KEY`, Brave par
+défaut — voir `scraper/recherche_web.py`), et extrait **cette source
+officielle** — celle qui fait foi et est scrapable proprement. Comme la
+recherche peut pointer une page périmée, ces fiches entrent **toujours « à
+vérifier »**. Script **manuel** (on ne martèle pas l'anti-bot en cron). C'est
+la mise en œuvre concrète de la « voie primaire » : Brulocalis est une *carte
+des pouvoirs subsidiants*, on va à la source. Un **partenariat** Brulocalis
+reste la voie la plus durable (comme envisagé pour KBS).
 
 ### Lot 1 — recon 17/07/2026
 
