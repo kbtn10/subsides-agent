@@ -5,6 +5,7 @@ import { API_URL } from "./constants";
 import type {
   Candidature, CandidatureDetail, CandidatureStats, ChecklistEtat, ChecklistItem,
   Conformite, DashboardData, DerniereMaj, JobStatus, Matching, MatchingDetail,
+  Obligation, ObligationEcheance, ObligationsEtat,
   Profil, ProfilInput, Recherche, RegistreEntry, Resume, ScrapeRun, Source, SourceSante,
   StatutCandidature,
 } from "./types";
@@ -179,6 +180,32 @@ export const api = {
     req<{ action: string; sortie: string; note: string; erreur?: string }>(
       `/candidature/${id}/copilote`, {
         method: "POST", body: { action, entree }, getToken }),
+
+  // Obligations post-octroi (lot 10B)
+  obligationsProfil: (profilId: number, getToken?: GetToken) =>
+    req<{ echeances: ObligationEcheance[] }>(`/obligations/${profilId}`, { getToken }),
+
+  genererObligations: (id: number, forcer = false, getToken?: GetToken) =>
+    req<ObligationsEtat>(`/candidature/${id}/obligations`, {
+      method: "POST", body: { forcer }, getToken }),
+
+  ancrerObligations: (id: number, date_fin_projet: string | null, getToken?: GetToken) =>
+    req<ObligationsEtat>(`/candidature/${id}/obligations/ancrage`, {
+      method: "POST", body: { date_fin_projet }, getToken }),
+
+  ajouterObligation: (id: number, intitule: string, echeance: string | null,
+                      type: string, getToken?: GetToken) =>
+    req<Obligation>(`/candidature/${id}/obligations/item`, {
+      method: "POST", body: { intitule, echeance, type }, getToken }),
+
+  majObligation: (obligationId: number,
+                  body: Partial<{ fait: boolean; intitule: string; echeance: string | null; type: string }>,
+                  getToken?: GetToken) =>
+    req<Obligation | { ok: boolean }>(`/obligation/${obligationId}`, {
+      method: "PATCH", body, getToken }),
+
+  supprimerObligation: (obligationId: number, getToken?: GetToken) =>
+    req<{ supprime: boolean }>(`/obligation/${obligationId}`, { method: "DELETE", getToken }),
 };
 
 export type {

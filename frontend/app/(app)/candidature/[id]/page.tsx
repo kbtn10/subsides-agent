@@ -10,6 +10,7 @@ import { BadgeEcheance } from "@/components/compact-card";
 import { ChecklistSection } from "@/components/candidature/checklist-section";
 import { ConformiteSection } from "@/components/candidature/conformite-section";
 import { CopiloteSection } from "@/components/candidature/copilote-section";
+import { ObligationsSection } from "@/components/candidature/obligations-section";
 import { NATURE_SANS_APPEL, type Nature } from "@/lib/nature";
 import { api, ApiError } from "@/lib/api";
 import { STATUT_LABEL, STATUT_STYLE } from "@/lib/constants";
@@ -107,6 +108,14 @@ export default function CandidaturePage() {
           plateforme officielle, et vous restez l&apos;auteur du dossier.
         </p>
       </header>
+
+      {/* Dossier obtenu : les obligations post-octroi passent devant (lot 10B) —
+          c'est là que se joue la suite (justifs, rapports, solde). */}
+      {c.statut === "obtenu" && (
+        <div className="mt-6">
+          <ObligationsSection candidatureId={c.id} initial={c.obligations} />
+        </div>
+      )}
 
       {/* Deux colonnes sur grand écran : la checklist (qu'on garde sous les yeux)
           à gauche, l'aide (conformité + copilote) à droite. Une seule colonne

@@ -21,6 +21,7 @@ import candidatures as cand_mod  # noqa: E402
 import db  # noqa: E402  (après load_dotenv : db lit DB_PATH à l'import)
 import etage3  # noqa: E402
 import jobs  # noqa: E402
+import obligations as oblig_mod  # noqa: E402
 import matching  # noqa: E402
 import profils  # noqa: E402
 from config.sources import SOURCES  # noqa: E402
@@ -473,6 +474,7 @@ async def get_candidature(candidature_id: int, user: dict | None = Depends(utili
     c = cand_mod.get_candidature_enrichie(candidature_id)
     c["checklist"] = etage3.etat_checklist(candidature_id)
     c["copilote"] = etage3.historique_copilote(candidature_id)
+    c["obligations"] = oblig_mod.etat_obligations(candidature_id)
     if c.get("subside"):
         c["recurrence"] = cand_mod.detecter_recurrence(c["subside"])
     return c
@@ -481,11 +483,20 @@ async def get_candidature(candidature_id: int, user: dict | None = Depends(utili
 @app.put("/candidature/{candidature_id}")
 async def maj_candidature(candidature_id: int, body: dict = Body(...),
                           user: dict | None = Depends(utilisateur_optionnel)):
-    _verifier_candidature(user, candidature_id)
+    avant = _verifier_candidature(user, candidature_id)
     try:
         c = cand_mod.maj_candidature(candidature_id, body)
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=_erreurs_pydantic(e))
+    # Passage en OBTENU : on relève les obligations post-octroi du règlement
+    # (best-effort — un échec LLM ne doit jamais bloquer le changement de statut).
+    if c and c["statut"] == "obtenu" and avant.get("statut") != "obtenu":
+        try:
+            etat = oblig_mod.generer_obligations(candidature_id, _uid(user))
+            c["obligations_generees"] = etat.get("total", 0)
+        except Exception:
+            log.exception("génération des obligations au passage en obtenu")
+            c["obligations_generees"] = None
     return c
 
 
@@ -532,6 +543,67 @@ async def supprimer_item(item_id: int, user: dict | None = Depends(utilisateur_o
     if user is not None and etage3.user_de_item(item_id) != user["id"]:
         raise HTTPException(status_code=403, detail="item hors de votre périmètre")
     etage3.supprimer_item(item_id)
+    return {"supprime": True}
+
+
+# ---- Obligations post-octroi (lot 10B) ----
+
+def _verifier_obligation(user: dict | None, obligation_id: int):
+    if user is not None and oblig_mod.user_de_obligation(obligation_id) != user["id"]:
+        raise HTTPException(status_code=403, detail="obligation hors de votre périmètre")
+
+
+@app.get("/obligations/{profil_id}")
+async def obligations_du_profil(profil_id: int, user: dict | None = Depends(utilisateur_optionnel)):
+    """Échéances d'obligations à faire d'un profil (rappels + page Échéances)."""
+    _verifier_proprietaire(user, profil_id)
+    return {"echeances": oblig_mod.echeances_du_profil(profil_id)}
+
+
+@app.post("/candidature/{candidature_id}/obligations")
+async def generer_obligations(candidature_id: int, body: dict = Body(default={}),
+                              user: dict | None = Depends(utilisateur_optionnel)):
+    _verifier_candidature(user, candidature_id)
+    try:
+        return oblig_mod.generer_obligations(candidature_id, _uid(user),
+                                             forcer=bool(body.get("forcer")))
+    except etage3.PlafondAtteint as e:
+        raise HTTPException(status_code=429, detail=str(e))
+
+
+@app.post("/candidature/{candidature_id}/obligations/ancrage")
+async def ancrer_obligations(candidature_id: int, body: dict = Body(...),
+                             user: dict | None = Depends(utilisateur_optionnel)):
+    """Fixe la date de fin de projet -> calcule les échéances relatives."""
+    _verifier_candidature(user, candidature_id)
+    return oblig_mod.definir_ancrage(candidature_id, body.get("date_fin_projet"))
+
+
+@app.post("/candidature/{candidature_id}/obligations/item")
+async def ajouter_obligation(candidature_id: int, body: dict = Body(...),
+                             user: dict | None = Depends(utilisateur_optionnel)):
+    _verifier_candidature(user, candidature_id)
+    intitule = (body.get("intitule") or "").strip()
+    if not intitule:
+        raise HTTPException(status_code=422, detail="intitulé requis")
+    return oblig_mod.ajouter(candidature_id, intitule, body.get("echeance"),
+                             body.get("type", "autre"))
+
+
+@app.patch("/obligation/{obligation_id}")
+async def maj_obligation(obligation_id: int, body: dict = Body(...),
+                         user: dict | None = Depends(utilisateur_optionnel)):
+    _verifier_obligation(user, obligation_id)
+    if "fait" in body:
+        oblig_mod.basculer(obligation_id, bool(body["fait"]))
+        return {"ok": True}
+    return oblig_mod.editer(obligation_id, body)
+
+
+@app.delete("/obligation/{obligation_id}")
+async def supprimer_obligation(obligation_id: int, user: dict | None = Depends(utilisateur_optionnel)):
+    _verifier_obligation(user, obligation_id)
+    oblig_mod.supprimer(obligation_id)
     return {"supprime": True}
 
 

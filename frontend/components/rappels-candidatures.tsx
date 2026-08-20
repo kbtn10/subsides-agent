@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
-import { BellRing, Clock } from "lucide-react";
+import { BellRing, Clock, ShieldCheck } from "lucide-react";
 import { api } from "@/lib/api";
 import { joursAvant } from "@/components/compact-card";
-import type { Candidature } from "@/lib/types";
+import type { Candidature, ObligationEcheance } from "@/lib/types";
 
 function joursDepuis(iso: string | null): number | null {
   if (!iso) return null;
@@ -22,12 +22,22 @@ function joursDepuis(iso: string | null): number | null {
 export function RappelsCandidatures({ profilId }: { profilId: number }) {
   const { getToken } = useAuth();
   const [liste, setListe] = useState<Candidature[]>([]);
+  const [obligations, setObligations] = useState<ObligationEcheance[]>([]);
 
   useEffect(() => {
     api.candidatures(profilId, getToken)
       .then((d) => setListe(d.candidatures))
       .catch(() => {});
+    api.obligationsProfil(profilId, getToken)
+      .then((d) => setObligations(d.echeances))
+      .catch(() => {});
   }, [profilId, getToken]);
+
+  // Obligations post-octroi à faire : rappel dès J-30 (échues incluses).
+  const obligationsProches = obligations.filter((o) => {
+    const j = joursAvant(o.echeance);
+    return j !== null && j <= 30;
+  });
 
   const urgents = liste.filter((c) => {
     if (c.statut !== "dossier_en_cours" || !c.subside?.deadline) return false;
@@ -40,10 +50,25 @@ export function RappelsCandidatures({ profilId }: { profilId: number }) {
     return j !== null && j >= 90;
   });
 
-  if (!urgents.length && !relances.length) return null;
+  if (!urgents.length && !relances.length && !obligationsProches.length) return null;
 
   return (
     <div className="mb-5 space-y-2">
+      {obligationsProches.map((o) => {
+        const j = joursAvant(o.echeance)!;
+        const echu = j < 0;
+        return (
+          <Link key={`o${o.id}`} href={`/candidature/${o.candidature_id}`}
+            className="flex items-center gap-2.5 rounded-[var(--radius-card)] border border-amber/40 bg-amber-soft px-4 py-3 text-sm text-amber transition-shadow hover:shadow-[var(--shadow-lift)]">
+            <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden />
+            <span>
+              Obligation{o.subside_titre ? <> — <span className="font-semibold">{o.subside_titre}</span></> : null} :
+              {" "}{o.intitule}{" "}
+              {echu ? `(échue depuis ${-j} j)` : j === 0 ? "(aujourd'hui)" : `(dans ${j} jour${j > 1 ? "s" : ""})`}.
+            </span>
+          </Link>
+        );
+      })}
       {urgents.map((c) => {
         const j = joursAvant(c.subside!.deadline)!;
         return (

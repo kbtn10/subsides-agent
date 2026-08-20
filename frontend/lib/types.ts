@@ -279,10 +279,52 @@ export interface Conformite {
   cout?: number;
 }
 
+// ==================== Obligations post-octroi (lot 10B) ====================
+
+export type TypeObligation = "justificatif" | "rapport" | "communication" | "autre";
+
+export interface Obligation {
+  id: number;
+  candidature_id: number;
+  intitule: string;
+  type: TypeObligation;
+  echeance: string | null;
+  delai_jours: number | null;
+  source: "reglement" | "manuelle";
+  source_citation: string | null;
+  statut: "a_faire" | "fait";
+  fait_le: string | null;
+}
+
+export interface ObligationsEtat {
+  items: Obligation[];
+  generee: boolean;
+  texte_absent: boolean;
+  fiche_a_change: boolean;
+  total: number;
+  faites: number;
+  en_regle: boolean;
+  date_fin_projet: string | null;
+  ancrage_requis: boolean;
+  depuis_cache?: boolean;
+  erreur?: string;
+  cout?: number;
+}
+
+export interface ObligationEcheance {
+  id: number;
+  intitule: string;
+  type: TypeObligation;
+  echeance: string;
+  candidature_id: number;
+  subside_titre: string | null;
+}
+
 // Candidature enrichie renvoyée par GET /candidature/{id}
 export interface CandidatureDetail extends Candidature {
   subside: (SubsideCarte & Record<string, unknown>) | null;
   checklist: ChecklistEtat;
   copilote: CopiloteMessage[];
+  obligations: ObligationsEtat;
   recurrence: Recurrence | null;
 }

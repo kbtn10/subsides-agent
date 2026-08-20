@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { motion, useReducedMotion } from "framer-motion";
-import { Loader2 } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { joursAvant, pastille } from "@/components/compact-card";
 import { IllusCalendrier } from "@/components/illustrations";
@@ -14,7 +14,7 @@ import { api } from "@/lib/api";
 import { resoudreProfilId } from "@/lib/profil-courant";
 import { RappelsCandidatures } from "@/components/rappels-candidatures";
 import { VERDICT_LABEL } from "@/lib/constants";
-import type { Matching } from "@/lib/types";
+import type { Matching, ObligationEcheance } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const ELIGIBLE = ["probablement_eligible", "eligible_sous_conditions"];
@@ -25,7 +25,12 @@ const MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
 function cleMois(d: Date) { return `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`; }
 function libelleMois(d: Date) { return `${MOIS[d.getMonth()]} ${d.getFullYear()}`; }
 
-/** Urgence : < 7 j = rouge sobre, < 30 j = ambre, sinon neutre. */
+// Deux natures d'échéance sur la même timeline : un appel daté (subside) et une
+// obligation post-octroi (justification, rapport…).
+type Ligne =
+  | { kind: "subside"; date: string; m: Matching }
+  | { kind: "obligation"; date: string; o: ObligationEcheance };
+
 function ton(j: number) {
   if (j < 7) return { point: "bg-danger", texte: "text-danger", fond: "border-danger/30" };
   if (j < 30) return { point: "bg-amber", texte: "text-amber", fond: "border-amber/30" };
@@ -37,33 +42,32 @@ export default function EcheancesPage() {
   const router = useRouter();
   const { getToken } = useAuth();
   const reduce = useReducedMotion();
-  const [items, setItems] = useState<Matching[] | null>(null);
+  const [items, setItems] = useState<Ligne[] | null>(null);
   const [erreur, setErreur] = useState(false);
   const [pid, setPid] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
-      // Résout le profil via le cache OU l'API (résilient au localStorage vide).
       let pid: number | null;
-      try {
-        pid = await resoudreProfilId(getToken);
-      } catch {
-        setErreur(true);
-        return;
-      }
+      try { pid = await resoudreProfilId(getToken); }
+      catch { setErreur(true); return; }
       if (pid == null) { router.replace("/onboarding"); return; }
       setPid(pid);
       try {
-        const d = await api.dashboard(pid, getToken);
-        // Uniquement ce qui vous concerne, daté, et pas encore passé.
-        const avecDate = d.matchings
+        const [d, obl] = await Promise.all([
+          api.dashboard(pid, getToken),
+          api.obligationsProfil(pid, getToken).catch(() => ({ echeances: [] as ObligationEcheance[] })),
+        ]);
+        const subsides: Ligne[] = d.matchings
           .filter((m) => ELIGIBLE.includes(m.verdict) && m.subside.deadline)
           .filter((m) => (joursAvant(m.subside.deadline) ?? -1) >= 0)
-          .sort((a, b) => (a.subside.deadline! < b.subside.deadline! ? -1 : 1));
-        setItems(avecDate);
-      } catch {
-        setErreur(true);
-      }
+          .map((m) => ({ kind: "subside", date: m.subside.deadline!, m }));
+        const obligations: Ligne[] = obl.echeances
+          .filter((o) => (joursAvant(o.echeance) ?? -1) >= 0)
+          .map((o) => ({ kind: "obligation", date: o.echeance, o }));
+        const tout = [...subsides, ...obligations].sort((a, b) => (a.date < b.date ? -1 : 1));
+        setItems(tout);
+      } catch { setErreur(true); }
     })();
   }, [router, getToken]);
 
@@ -75,24 +79,22 @@ export default function EcheancesPage() {
       </div>
     );
   }
-
   if (!items) {
     return <p className="flex items-center gap-2 py-10 text-ink-soft">
       <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Chargement…
     </p>;
   }
 
-  // Regroupement par mois, dans l'ordre chronologique.
-  const groupes: { cle: string; libelle: string; lignes: Matching[] }[] = [];
-  for (const m of items) {
-    const d = new Date(m.subside.deadline!);
+  const groupes: { cle: string; libelle: string; lignes: Ligne[] }[] = [];
+  for (const l of items) {
+    const d = new Date(l.date);
     const cle = cleMois(d);
     const dernier = groupes[groupes.length - 1];
-    if (dernier && dernier.cle === cle) dernier.lignes.push(m);
-    else groupes.push({ cle, libelle: libelleMois(d), lignes: [m] });
+    if (dernier && dernier.cle === cle) dernier.lignes.push(l);
+    else groupes.push({ cle, libelle: libelleMois(d), lignes: [l] });
   }
-
-  const urgents = items.filter((m) => (joursAvant(m.subside.deadline) ?? 999) < 30).length;
+  const urgents = items.filter((l) => (joursAvant(l.date) ?? 999) < 30).length;
+  const nbOblig = items.filter((l) => l.kind === "obligation").length;
 
   return (
     <div>
@@ -102,9 +104,10 @@ export default function EcheancesPage() {
         <h1 className="font-display text-3xl font-semibold text-ink">Échéances</h1>
         <p className="mt-1 text-ink-soft">
           {items.length === 0
-            ? "Aucune échéance datée parmi vos correspondances."
+            ? "Aucune échéance datée pour le moment."
             : <>{items.length} échéance{items.length > 1 ? "s" : ""} à venir
-                {urgents > 0 && <> · <span className="font-semibold text-amber">{urgents} dans les 30 jours</span></>}.</>}
+                {urgents > 0 && <> · <span className="font-semibold text-amber">{urgents} dans les 30 jours</span></>}
+                {nbOblig > 0 && <> · {nbOblig} justification{nbOblig > 1 ? "s" : ""}</>}.</>}
         </p>
       </header>
 
@@ -126,27 +129,51 @@ export default function EcheancesPage() {
         {groupes.map((g, gi) => (
           <section key={g.cle}>
             <h2 className="mb-3 font-display text-lg font-semibold capitalize text-ink">{g.libelle}</h2>
-            {/* Timeline : un filet vertical, un point par échéance. */}
             <ol className="relative border-l border-border pl-5">
-              {g.lignes.map((m, i) => {
-                const j = joursAvant(m.subside.deadline)!;
+              {g.lignes.map((l, i) => {
+                const j = joursAvant(l.date)!;
                 const t = ton(j);
+                const anim = {
+                  initial: reduce ? false : { opacity: 0, x: -8 },
+                  animate: { opacity: 1, x: 0 },
+                  transition: { duration: 0.3, delay: reduce ? 0 : Math.min((gi * 3 + i) * 0.05, 0.6) },
+                  className: "relative mb-3 last:mb-0",
+                };
+                const point = (
+                  <span className={cn("absolute -left-[26px] top-4 h-2 w-2 rounded-full ring-4 ring-bg", t.point)} aria-hidden />
+                );
+                if (l.kind === "obligation") {
+                  return (
+                    <motion.li key={`o${l.o.id}`} {...anim}>
+                      {point}
+                      <Link href={`/candidature/${l.o.candidature_id}`}
+                        className={cn("block rounded-[var(--radius-card)] border bg-surface px-4 py-3 transition-all duration-150",
+                          "hover:-translate-y-px hover:bg-surface-2 hover:shadow-[var(--shadow-lift)]", t.fond)}>
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="truncate font-medium text-ink">{l.o.intitule}</p>
+                          <span className={cn("shrink-0 text-sm font-semibold", t.texte)}>
+                            {j === 0 ? "Aujourd'hui" : `J-${j}`}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-[13px] text-ink-soft">
+                          {l.o.subside_titre && <span className="truncate">{l.o.subside_titre}</span>}
+                          <span className="text-ink-faint">·</span>
+                          <span>{l.o.echeance}</span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-soft px-2 py-0.5 text-[11px] font-bold text-amber">
+                            <ShieldCheck className="h-3 w-3" aria-hidden /> justification
+                          </span>
+                        </div>
+                      </Link>
+                    </motion.li>
+                  );
+                }
+                const m = l.m;
                 return (
-                  <motion.li
-                    key={m.id}
-                    initial={reduce ? false : { opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: reduce ? 0 : Math.min((gi * 3 + i) * 0.05, 0.6) }}
-                    className="relative mb-3 last:mb-0"
-                  >
-                    <span className={cn("absolute -left-[26px] top-4 h-2 w-2 rounded-full ring-4 ring-bg", t.point)}
-                      aria-hidden />
+                  <motion.li key={`s${m.id}`} {...anim}>
+                    {point}
                     <Link href={`/subside/${m.id}`}
-                      className={cn(
-                        "block rounded-[var(--radius-card)] border bg-surface px-4 py-3 transition-all duration-150",
-                        "hover:-translate-y-px hover:bg-surface-2 hover:shadow-[var(--shadow-lift)]",
-                        t.fond,
-                      )}>
+                      className={cn("block rounded-[var(--radius-card)] border bg-surface px-4 py-3 transition-all duration-150",
+                        "hover:-translate-y-px hover:bg-surface-2 hover:shadow-[var(--shadow-lift)]", t.fond)}>
                       <div className="flex items-start justify-between gap-3">
                         <p className="truncate font-medium text-ink">{m.subside.titre}</p>
                         <span className={cn("shrink-0 text-sm font-semibold", t.texte)}>

@@ -111,11 +111,13 @@ export default function CandidaturesPage() {
   }, [getToken, router, charger]);
 
   const appliquer = async (id: number, patch: Parameters<typeof api.majCandidature>[1]) => {
-    await api.majCandidature(id, patch, getToken);
+    const maj = await api.majCandidature(id, patch, getToken);
     // Un mot chaleureux aux moments clés — jamais de confettis plein écran.
     if (patch.statut === "obtenu") {
       const m = patch.montant_obtenu;
-      toast(m ? `${euros(Number(m))} obtenus — bravo 🎉` : "Candidature acceptée — bravo 🎉", "succes");
+      const n = (maj as { obligations_generees?: number | null })?.obligations_generees;
+      const suite = n ? ` — on a relevé ${n} obligation${n > 1 ? "s" : ""} à suivre, tout est dans votre dossier.` : "";
+      toast((m ? `${euros(Number(m))} obtenus — bravo 🎉` : "Candidature acceptée — bravo 🎉") + suite, "succes");
     } else if (patch.statut === "refuse") {
       toast("Ça arrive. Le prochain appel est peut-être déjà dans vos correspondances.");
     }

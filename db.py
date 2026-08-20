@@ -316,10 +316,39 @@ def init_db():
             PRIMARY KEY (user_id, jour)
         );
 
+        -- ================= Lot 10B : obligations post-octroi =================
+        -- Obtenir un subside déclenche des obligations (justifs datés, rapports,
+        -- communication/logo, versement du solde). On les extrait du règlement
+        -- (avec citation) au passage en 'obtenu', + ajouts manuels.
+        CREATE TABLE IF NOT EXISTS obligations (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            candidature_id  INTEGER NOT NULL,
+            intitule        TEXT NOT NULL,
+            type            TEXT DEFAULT 'autre',   -- justificatif|rapport|communication|autre
+            echeance        TEXT,                   -- date ISO (absolue) ou NULL
+            delai_jours     INTEGER,                -- délai relatif à la fin de projet, ou NULL
+            source          TEXT DEFAULT 'reglement', -- reglement|manuelle
+            source_citation TEXT,                   -- extrait verbatim (si source=reglement)
+            statut          TEXT DEFAULT 'a_faire', -- a_faire|fait
+            fait_le         TEXT,
+            cree_le         TEXT NOT NULL,
+            FOREIGN KEY(candidature_id) REFERENCES candidatures(id) ON DELETE CASCADE
+        );
+        -- Empreinte de la dernière génération (comme checklist_meta) : régénérer
+        -- proprement quand la fiche change, sans perdre les 'fait'.
+        CREATE TABLE IF NOT EXISTS obligations_meta (
+            candidature_id INTEGER PRIMARY KEY,
+            subside_hash   TEXT,
+            genere_le      TEXT,
+            texte_absent   INTEGER DEFAULT 0,
+            FOREIGN KEY(candidature_id) REFERENCES candidatures(id) ON DELETE CASCADE
+        );
+
         CREATE INDEX IF NOT EXISTS idx_cand_profil   ON candidatures(profil_id);
         CREATE INDEX IF NOT EXISTS idx_cand_subside  ON candidatures(subside_id);
         CREATE INDEX IF NOT EXISTS idx_checklist_cand ON checklist_items(candidature_id);
         CREATE INDEX IF NOT EXISTS idx_copilote_cand  ON copilote_messages(candidature_id);
+        CREATE INDEX IF NOT EXISTS idx_oblig_cand     ON obligations(candidature_id);
 
         -- Lot 9 : registre des sources (couverture visible et honnête). Le
         -- config/sources.py reste la vérité d'exécution ; ceci en est le miroir
@@ -441,6 +470,12 @@ def _migrer_tables_lot3(conn):
     if "nom_recherche" not in cols("profils"):
         conn.execute("ALTER TABLE profils ADD COLUMN nom_recherche TEXT")
         log.info("Migration : colonne 'profils.nom_recherche' ajoutée")
+    # Lot 10B : date d'ancrage (fin de projet) pour calculer les échéances des
+    # obligations à délai relatif (« dans les 3 mois suivant la fin du projet »).
+    # (garde : la table candidatures peut ne pas exister sur une base d'avant lot 7)
+    if cols("candidatures") and "date_fin_projet" not in cols("candidatures"):
+        conn.execute("ALTER TABLE candidatures ADD COLUMN date_fin_projet TEXT")
+        log.info("Migration : colonne 'candidatures.date_fin_projet' ajoutée")
 
 
 def _migrer_colonnes(conn):
