@@ -364,6 +364,38 @@ def _peupler_registre(conn):
         )
 
 
+_DUP_STOP = {"appel", "a", "à", "projets", "projet", "candidature", "candidatures",
+             "de", "des", "du", "la", "le", "les", "l", "d", "pour", "aux", "au",
+             "et", "en", "un", "une", "the"}
+
+
+def _signature_titre(titre: str) -> frozenset:
+    """Signature normalisée d'un titre (casse repliée, ponctuation, années et
+    mots vides retirés) pour détecter les quasi-doublons inter-sources."""
+    t = re.sub(r"[^\w\s]", " ", (titre or "").casefold())
+    return frozenset(w for w in t.split()
+                     if w and w not in _DUP_STOP and not w.isdigit())
+
+
+def quasi_doublons_inter_sources(min_mots: int = 2) -> list[list[dict]]:
+    """Groupes de fiches (de SOURCES DIFFÉRENTES) au titre quasi-identique.
+
+    Lot 9 : la dédup inter-sources n'est pas AUTOMATIQUE (un appel BEE relayé
+    par hub aurait deux fiches) — mais on la DÉTECTE et on la remonte, pour
+    décider du traitement au vu de vraies données. Aucune fusion ici."""
+    rows = connect().execute(
+        "SELECT id, titre, source_id, url_source FROM subsides "
+        "WHERE statut != 'echec_extraction' AND titre IS NOT NULL AND titre != ''"
+    ).fetchall()
+    groupes = {}
+    for r in rows:
+        sig = _signature_titre(r["titre"])
+        if len(sig) >= min_mots:
+            groupes.setdefault(sig, []).append(dict(r))
+    return [items for items in groupes.values()
+            if len({i["source_id"] for i in items}) > 1]
+
+
 def lister_registre() -> list[dict]:
     """Le registre des sources, trié par statut (actives d'abord) puis niveau."""
     ordre = "CASE statut WHEN 'active' THEN 0 WHEN 'a_evaluer' THEN 1 " \

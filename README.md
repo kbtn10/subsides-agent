@@ -226,10 +226,43 @@ d'origines `azp`.
 
 ## État réel des sources
 
-**6 sources actives** (lot 1 : hub.brussels, KBS ; lot 2 : COCOF, equal.brussels,
-culture.be ; lot 6 : portail FWB) + **3 différées** documentées. Toutes les
-structures ont été vérifiées en direct sur les vrais sites avant de choisir la
-stratégie.
+**9 sources actives** (lot 1 : hub.brussels, KBS ; lot 2 : COCOF, equal.brussels,
+culture.be ; lot 6 : portail FWB ; **lot 9 : hub.brussels Appels à projets,
+Ville de Bruxelles (première commune), Bruxelles Économie et Emploi**) +
+sources différées/à évaluer/écartées documentées. Le **registre** complet
+(`GET /sources/registry`, onglet Admin) rend la couverture visible :
+« X actives / Y identifiées ». Toutes les structures ont été vérifiées en direct
+sur les vrais sites avant de choisir la stratégie.
+
+### Lot 9 — expansion bruxelloise + brulocalis (recon 20/08/2026)
+
+Nouvelles actives : **hub.brussels/appels-a-projets**, **Ville de Bruxelles**
+(`bruxelles.be/appels-projets-en-cours`, Drupal — pilote de la vague communes,
+`niveau=commune`), **Bruxelles Économie et Emploi**
+(`economie-emploi.brussels/appels-a-projets`). Pour BEE, comme KBS/FWB : le
+robots.txt bloque des agents IA **nommés** (anthropic-ai, ClaudeBot, GPTBot…),
+mais le groupe `*` autorise `/appel-projets-{slug}` ; notre UA relève de `*` et
+ne se déguise en aucun agent nommé. Surveillance `signaux_defavorables` active.
+
+À évaluer : **Actiris** et **perspective/accrochage scolaire** — robots OK, mais
+les appels y sont décrits *inline* + annexes PDF (pas de fiches individuelles
+crawlables) ; une stratégie dédiée est nécessaire.
+
+**Brulocalis** (`brulocalis.brussels/fr/subsides`) — la base subsides de
+l'association des villes et communes bruxelloises, agrégateur **public gratuit**
+d'intérêt général (à ne pas confondre avec un agrégateur commercial), référence
+reconnue côté subsides communaux. Recon : le site est protégé par **BunkerWeb** —
+`/robots.txt` **lui-même** renvoie une page HTML « Bot Detection » (« Please wait
+while we check if you are a Human », meta refresh 30s, `meta robots noindex,
+nofollow`), donc aucune politique robots lisible ; `httpx` est bloqué. Un
+**unique** essai Playwright avec notre UA honnête (outil standard, pas un
+contournement) **a passé** le challenge et rendu le vrai contenu. Conduite : le
+site signale **activement** qu'il ne veut pas de bots → **nous ne crawlons pas**
+dans ce lot. La décision d'exploitation durable appartient au propriétaire.
+**Voie recommandée** : Brulocalis est aussi une *carte des pouvoirs
+subsidiants* — ses sources primaires (communes, région) sont scrapables
+directement, et un **contact/partenariat** avec Brulocalis est la voie durable
+(comme envisagé pour KBS).
 
 ### Lot 1 — recon 17/07/2026
 

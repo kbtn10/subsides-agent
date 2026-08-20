@@ -101,3 +101,21 @@ def test_ids_registre_actives_referencent_config():
         if e["statut"] == "active" and e.get("config_id"):
             s = get_source(e["config_id"])
             assert s is not None and s["actif"] is True, e["id"]
+
+
+# --- Détection des quasi-doublons inter-sources (garde-fou lot 9) -----------
+
+def test_quasi_doublons_inter_sources(db):
+    # Même appel relayé par deux sources -> détecté (aucune fusion).
+    base = {"deadline": "2099-12-31", "zone_categorie": "bruxelles"}
+    db.upsert_subside({**base, "url_source": "https://a.be/x1",
+                       "titre": "Appel à projets Good Food 2026"}, "hub_appels", text_hash="h1")
+    db.upsert_subside({**base, "url_source": "https://b.be/y1",
+                       "titre": "Appel à projets : Good Food"}, "economie_emploi", text_hash="h2")
+    # Une fiche d'une seule source ne compte pas.
+    db.upsert_subside({**base, "url_source": "https://a.be/z1",
+                       "titre": "Prime vélo cargo Anderlecht"}, "hub_appels", text_hash="h3")
+    groupes = db.quasi_doublons_inter_sources()
+    assert len(groupes) == 1
+    srcs = {i["source_id"] for i in groupes[0]}
+    assert srcs == {"hub_appels", "economie_emploi"}
