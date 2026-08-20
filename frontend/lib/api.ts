@@ -5,7 +5,7 @@ import { API_URL } from "./constants";
 import type {
   Candidature, CandidatureDetail, CandidatureStats, ChecklistEtat, ChecklistItem,
   Conformite, DashboardData, DerniereMaj, JobStatus, Matching, MatchingDetail,
-  Profil, ProfilInput, Recherche, Resume, ScrapeRun, Source, SourceSante,
+  Profil, ProfilInput, Recherche, RegistreEntry, Resume, ScrapeRun, Source, SourceSante,
   StatutCandidature,
 } from "./types";
 
@@ -101,6 +101,9 @@ export const api = {
     req<MatchingDetail>(`/matching-detail/${matchingId}`, { getToken }),
 
   sources: () => req<Source[]>("/sources"),
+
+  sourcesRegistry: () =>
+    req<{ sources: RegistreEntry[]; comptes: Record<string, number> }>("/sources/registry"),
 
   // --- Admin ---
   // Toujours 200 : dit simplement si le compte courant est admin.

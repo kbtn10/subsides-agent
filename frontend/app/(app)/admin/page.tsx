@@ -7,6 +7,7 @@ import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, Play, ShieldAlert }
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/field";
 import { StatTile } from "@/components/stat-tile";
+import { RegistreSources } from "@/components/admin/registre-sources";
 import { api, ApiError } from "@/lib/api";
 import type { ScrapeRun, SourceSante } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -175,6 +176,11 @@ export default function AdminPage() {
           )}
         </motion.section>
       )}
+
+      {/* Registre des sources (lot 9) : couverture visible et honnête */}
+      <div className="mb-8">
+        <RegistreSources />
+      </div>
 
       {/* Santé des sources */}
       <section className="mb-8">

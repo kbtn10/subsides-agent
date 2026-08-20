@@ -320,11 +320,57 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_cand_subside  ON candidatures(subside_id);
         CREATE INDEX IF NOT EXISTS idx_checklist_cand ON checklist_items(candidature_id);
         CREATE INDEX IF NOT EXISTS idx_copilote_cand  ON copilote_messages(candidature_id);
+
+        -- Lot 9 : registre des sources (couverture visible et honnête). Le
+        -- config/sources.py reste la vérité d'exécution ; ceci en est le miroir
+        -- lisible, avec les différées et les écartées.
+        CREATE TABLE IF NOT EXISTS sources_registry (
+            id          TEXT PRIMARY KEY,
+            nom         TEXT NOT NULL,
+            url_entree  TEXT,
+            niveau      TEXT,   -- federal|regional|communautaire|commune|philanthropique|europeen
+            langue      TEXT,
+            statut      TEXT,   -- active|a_evaluer|differee|ecartee
+            raison      TEXT,
+            evaluee_le  TEXT
+        );
         """
     )
     _migrer_tables_lot3(conn)   # après création : ajoute les colonnes manquantes
+    _peupler_registre(conn)
     conn.commit()
     return conn
+
+
+def _peupler_registre(conn):
+    """Upsert le registre des sources depuis config/registre.py. Préserve
+    evaluee_le si la ligne existe déjà (première évaluation)."""
+    try:
+        from config.registre import REGISTRE
+    except Exception:
+        return
+    maintenant = _now()
+    for e in REGISTRE:
+        conn.execute(
+            """INSERT INTO sources_registry (id, nom, url_entree, niveau, langue,
+                 statut, raison, evaluee_le)
+               VALUES (?,?,?,?,?,?,?,?)
+               ON CONFLICT(id) DO UPDATE SET
+                 nom=excluded.nom, url_entree=excluded.url_entree,
+                 niveau=excluded.niveau, langue=excluded.langue,
+                 statut=excluded.statut, raison=excluded.raison""",
+            (e["id"], e["nom"], e.get("url_entree"), e.get("niveau"), e.get("langue"),
+             e.get("statut"), e.get("raison"), maintenant),
+        )
+
+
+def lister_registre() -> list[dict]:
+    """Le registre des sources, trié par statut (actives d'abord) puis niveau."""
+    ordre = "CASE statut WHEN 'active' THEN 0 WHEN 'a_evaluer' THEN 1 " \
+            "WHEN 'differee' THEN 2 ELSE 3 END"
+    rows = connect().execute(
+        f"SELECT * FROM sources_registry ORDER BY {ordre}, niveau, nom").fetchall()
+    return [dict(r) for r in rows]
 
 
 def _migrer_tables_lot3(conn):

@@ -299,6 +299,127 @@ SOURCES = [
         "actif": True,
         "rendu_js": False,
     },
+    # ==================== LOT 9 : expansion bruxelloise ====================
+    {
+        # hub.brussels — SECTION APPELS À PROJETS (distincte de l'annuaire
+        # /subsides déjà couvert par subsides_brussels). Recon 20/08/2026 :
+        # robots.txt (User-agent: *) n'interdit que /admin/ et /node/add/ ;
+        # /appels-a-projets est AUTORISÉ, Crawl-delay: 10, aucun Content-Signal,
+        # aucun challenge anti-bot pour notre UA. Fiches /appel-a-projets/{slug} ;
+        # listing mixé actus/appels -> tri llm_links.
+        "id": "hub_appels",
+        "nom": "hub.brussels — Appels à projets",
+        "niveau": "regional",
+        "start_urls": ["https://info.hub.brussels/appels-a-projets"],
+        "strategie": "llm_links",
+        "url_pattern": None,
+        "max_pages": 3,
+        "delai_secondes": 10.0,   # Crawl-delay robots.txt hub
+        "actif": True,
+        "rendu_js": False,
+    },
+    {
+        # Ville de Bruxelles — PREMIÈRE COMMUNE (pilote de la vague communes).
+        # Recon 20/08/2026 : Drupal, robots.txt (User-agent: *) n'interdit que
+        # les internes Drupal (/core, /admin, /node/add...) ;
+        # /appels-projets-en-cours et /appel-projets-{slug} AUTORISÉS, aucun
+        # blocage IA, aucun WAF. Listing server-rendered -> tri llm_links.
+        "id": "bruxelles_ville",
+        "nom": "Ville de Bruxelles — Appels à projets",
+        "niveau": "commune",
+        "start_urls": ["https://www.bruxelles.be/appels-projets-en-cours"],
+        "strategie": "llm_links",
+        "url_pattern": None,
+        "max_pages": 3,
+        "delai_secondes": 3.0,
+        "actif": True,
+        "rendu_js": False,
+    },
+    {
+        # Actiris — appels d'insertion socioprofessionnelle (opérateurs d'emploi
+        # dont ASBL). Recon 20/08/2026 : robots.txt minimal (Disallow: /media/
+        # seul), aucun blocage IA. Deux points d'entrée : appels en cours +
+        # archive (récurrence). Tri llm_links.
+        "id": "actiris",
+        "nom": "Actiris — Appels à projets partenaires",
+        "niveau": "regional",
+        "start_urls": [
+            "https://www.actiris.brussels/fr/partenaires/repondre-a-un-appel-a-projets/",
+            "https://www.actiris.brussels/fr/partenaires/archive-des-appels-a-projets/",
+        ],
+        "strategie": "llm_links",
+        "url_pattern": None,
+        "max_pages": 3,
+        "delai_secondes": 3.0,
+        "actif": False,
+        "rendu_js": False,
+    },
+    {
+        # perspective.brussels / accrochagescolaire.brussels — les appels
+        # régionaux connus (dispositif accrochage scolaire, ASBL bruxelloises,
+        # jusqu'à ~100 k€) vivent sur accrochagescolaire.brussels. Recon
+        # 20/08/2026 : Drupal, robots.txt n'interdit que les internes, aucun
+        # blocage IA, Crawl-delay: 10. Listing -> tri llm_links.
+        "id": "accrochage_scolaire",
+        "nom": "perspective.brussels — Accrochage scolaire (appels régionaux)",
+        "niveau": "regional",
+        "start_urls": ["https://www.accrochagescolaire.brussels/projets-regionaux/appel-projets"],
+        "strategie": "llm_links",
+        "url_pattern": None,
+        "max_pages": 3,
+        "delai_secondes": 10.0,
+        "actif": False,
+        "rendu_js": False,
+    },
+    {
+        # economie-emploi.brussels (Bruxelles Économie et Emploi) — ACTIVE (lot 9).
+        # Listing localisé : /appels-a-projets (== /appels-projets) liste ±9
+        # fiches /appel-projets-{slug}, server-rendered (pas de JS). Tri llm_links.
+        #
+        # ⚠️ CONFORMITÉ (robots.txt, relevé 20/08/2026) — MÊME raisonnement que
+        # kbs_frb / fwb_portail. Le fichier bloque NOMMÉMENT des agents IA
+        # (anthropic-ai, ClaudeBot, Claude-Web, GPTBot, CCBot, Google-Extended,
+        # cohere-ai, Bytespider…), MAIS le groupe `*` n'interdit que /*?*, /node*,
+        # /media*, /file*, /print* — les fiches /appel-projets-{slug} sont
+        # AUTORISÉES. Notre UA (SubsidesAgentBot) relève de `*`, pas des agents
+        # nommés, et nous ne nous déguisons en aucun d'eux. Aucun Content-Signal.
+        # Nous n'entraînons aucun modèle et renvoyons vers la fiche officielle.
+        # robots.signaux_defavorables() relit ces signaux à chaque run (garde-fou).
+        # Décision assumée, à revoir par le propriétaire s'il le souhaite.
+        "id": "economie_emploi",
+        "nom": "Bruxelles Économie et Emploi — Appels à projets",
+        "niveau": "regional",
+        "start_urls": ["https://economie-emploi.brussels/appels-a-projets"],
+        "strategie": "llm_links",
+        "url_pattern": None,
+        "max_pages": 3,
+        "delai_secondes": 5.0,
+        "actif": True,
+        "rendu_js": False,
+    },
+    {
+        # brulocalis.brussels — À ÉVALUER (décision propriétaire). Recon
+        # 20/08/2026 : le site est protégé par BunkerWeb — /robots.txt LUI-MÊME
+        # renvoie une page HTML « Bot Detection » (« Please wait while we check
+        # if you are a Human », meta refresh 30s, meta robots noindex,nofollow),
+        # donc AUCUNE politique robots lisible. httpx est bloqué (challenge JS).
+        # Un UNIQUE essai Playwright avec notre UA honnête (outil standard, pas
+        # un contournement) A PASSÉ le challenge et rendu le vrai contenu
+        # (« Subsides et appels à projets | Brulocalis »). Conduite : le site
+        # signale activement qu'il ne veut pas de bots -> on NE crawle PAS dans
+        # ce lot ; décision d'exploitation durable laissée au propriétaire
+        # (contact/partenariat Brulocalis, comme pour KBS). Voir README.
+        "id": "brulocalis",
+        "nom": "Brulocalis — Subsides communaux (différée : anti-bot BunkerWeb)",
+        "niveau": "regional",
+        "start_urls": ["https://www.brulocalis.brussels/fr/subsides"],
+        "strategie": "llm_links",
+        "url_pattern": None,
+        "max_pages": 3,
+        "delai_secondes": 10.0,
+        "actif": False,
+        "rendu_js": True,
+    },
     # ==================== Sources DIFFÉRÉES (non codées) ====================
     {
         # VGC (Vlaamse Gemeenschapscommissie) — DIFFÉRÉE.

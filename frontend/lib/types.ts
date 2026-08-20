@@ -165,6 +165,21 @@ export interface ScrapeRun {
   };
 }
 
+export type StatutRegistre = "active" | "a_evaluer" | "differee" | "ecartee";
+export type NiveauSource =
+  | "federal" | "regional" | "communautaire" | "commune" | "philanthropique" | "europeen";
+
+export interface RegistreEntry {
+  id: string;
+  nom: string;
+  url_entree: string | null;
+  niveau: NiveauSource | null;
+  langue: string | null;
+  statut: StatutRegistre;
+  raison: string | null;
+  evaluee_le: string | null;
+}
+
 export interface SourceSante {
   id: string;
   nom: string;

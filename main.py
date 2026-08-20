@@ -169,6 +169,14 @@ async def get_sources():
     ]
 
 
+@app.get("/sources/registry")
+async def get_sources_registry():
+    """Registre des sources (lot 9) : couverture visible et honnête, avec les
+    différées et les écartées. Public (rien de sensible)."""
+    from config.registre import compter
+    return {"sources": db.lister_registre(), "comptes": compter()}
+
+
 @app.post("/scrape")
 async def scrape(
     source: str | None = Query(None, description="limite le run à cette source (backfill ciblé)"),
