@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { ArrowLeft, ArrowUpRight, History, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, History, Info, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BadgeEcheance } from "@/components/compact-card";
 import { ChecklistSection } from "@/components/candidature/checklist-section";
 import { ConformiteSection } from "@/components/candidature/conformite-section";
 import { CopiloteSection } from "@/components/candidature/copilote-section";
+import { NATURE_SANS_APPEL, type Nature } from "@/lib/nature";
 import { api, ApiError } from "@/lib/api";
 import { STATUT_LABEL, STATUT_STYLE } from "@/lib/constants";
 import type { CandidatureDetail } from "@/lib/types";
@@ -54,6 +55,11 @@ export default function CandidaturePage() {
 
   const s = c.subside;
   const rec = c.recurrence;
+  // Un dispositif permanent / instrument financier n'a pas d'appel formel : pas
+  // de règlement à citer, donc pas de checklist auto (lot 9).
+  const nature = s?.nature as Nature | undefined;
+  const natureSansAppel = !!nature && NATURE_SANS_APPEL.includes(nature);
+  const organisme = (s?.organisme as string) ?? "l'organisme";
 
   return (
     <div>
@@ -106,7 +112,26 @@ export default function CandidaturePage() {
           à gauche, l'aide (conformité + copilote) à droite. Une seule colonne
           sous 1100px. */}
       <div className="mt-6 grid gap-5 min-[1100px]:grid-cols-2 min-[1100px]:items-start">
-        <ChecklistSection candidatureId={c.id} initial={c.checklist} />
+        {natureSansAppel ? (
+          <section className="rounded-[var(--radius-card)] border border-border bg-surface-2 p-5">
+            <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-ink">
+              <Info className="h-4 w-4 text-info" aria-hidden /> Pas d&apos;appel formel
+            </h2>
+            <p className="mt-2 text-[15px] leading-relaxed text-ink-soft">
+              Ce dispositif n&apos;a pas d&apos;appel formel avec un règlement à citer :
+              Subsidia ne peut pas en générer la checklist des pièces. Contactez
+              {" "}{organisme} pour connaître la procédure et les documents à fournir.
+            </p>
+            {s?.url_source ? (
+              <a href={String(s.lien_officiel ?? s.url_source)} target="_blank" rel="noopener noreferrer"
+                className="mt-3 inline-block">
+                <Button variant="ghost" size="sm">Voir la fiche officielle <ArrowUpRight className="h-4 w-4" /></Button>
+              </a>
+            ) : null}
+          </section>
+        ) : (
+          <ChecklistSection candidatureId={c.id} initial={c.checklist} />
+        )}
         <div className="space-y-5">
           <ConformiteSection candidatureId={c.id} />
           <CopiloteSection candidatureId={c.id} historique={c.copilote} />

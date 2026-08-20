@@ -19,6 +19,7 @@ import { api, ApiError } from "@/lib/api";
 import { oublierProfilCache, resoudreProfilId } from "@/lib/profil-courant";
 import { useTitre } from "@/lib/use-titre";
 import { FiltrePertinence, filtrerParPertinence, type FiltrePert } from "@/components/filtre-pertinence";
+import { FiltreNature, filtrerParNature, type FiltreNat } from "@/components/filtre-nature";
 import type { Matching, Resume } from "@/lib/types";
 
 type Phase = "chargement" | "analyse" | "termine" | "vide" | "erreur";
@@ -57,6 +58,7 @@ function DashboardInner() {
   // Contexte « recherche » : nom à afficher dans le bandeau, ou null (principal).
   const [contexteRecherche, setContexteRecherche] = useState<string | null>(null);
   const [filtrePert, setFiltrePert] = useState<FiltrePert>("toutes");
+  const [filtreNat, setFiltreNat] = useState<FiltreNat>("toutes");
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const vus = useRef<Set<number>>(new Set());
@@ -113,7 +115,8 @@ function DashboardInner() {
 
   const lancer = useCallback(async (pid: number) => {
     setPhase("analyse"); setResultats([]); vus.current.clear();
-    setTraites(0); setCandidats(null); setErreur(null); setFiltrePert("toutes");
+    setTraites(0); setCandidats(null); setErreur(null);
+    setFiltrePert("toutes"); setFiltreNat("toutes");
     try {
       const { job_id } = await api.lancerMatching(pid, getToken);
       suivre(pid, job_id);
@@ -136,7 +139,7 @@ function DashboardInner() {
     stopPoll();
     (async () => {
       setPhase("chargement"); setResultats([]); vus.current.clear();
-      setContexteRecherche(null); setFiltrePert("toutes");
+      setContexteRecherche(null); setFiltrePert("toutes"); setFiltreNat("toutes");
       // Un ?profil=<id> valide ouvre une recherche sauvegardée ; sinon on
       // résout le profil principal via le cache OU l'API (résilient au
       // localStorage vide). On ne touche jamais au cache depuis une recherche.
@@ -181,7 +184,7 @@ function DashboardInner() {
   }, [profilParam]);
 
   const eligibles = resultats.filter((m) => ELIGIBLE.includes(m.verdict));
-  const eligiblesAffiches = filtrerParPertinence(eligibles, filtrePert);
+  const eligiblesAffiches = filtrerParNature(filtrerParPertinence(eligibles, filtrePert), filtreNat);
   const nonRetenus = resultats.filter((m) => m.verdict === "non_eligible");
   const erreurs = resultats.filter((m) => m.verdict === "erreur");
   // Tout en erreur et rien d'éligible : ne pas faire passer ça pour « aucune correspondance ».
@@ -281,9 +284,12 @@ function DashboardInner() {
       )}
 
       {eligibles.length > 0 && (
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
           <h2 className="font-display text-lg font-semibold text-ink">Vos subsides</h2>
-          <FiltrePertinence eligibles={eligibles} valeur={filtrePert} onChange={setFiltrePert} />
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <FiltreNature eligibles={eligibles} valeur={filtreNat} onChange={setFiltreNat} />
+            <FiltrePertinence eligibles={eligibles} valeur={filtrePert} onChange={setFiltrePert} />
+          </div>
         </div>
       )}
 
@@ -303,8 +309,9 @@ function DashboardInner() {
       {/* Filtre actif qui ne laisse rien : on le dit, avec un retour à « Toutes ». */}
       {eligibles.length > 0 && eligiblesAffiches.length === 0 && (
         <p className="rounded-[var(--radius-card)] border border-dashed border-border px-4 py-6 text-center text-sm text-ink-soft">
-          Aucune correspondance de pertinence «&nbsp;{filtrePert}&nbsp;».{" "}
-          <button className="font-medium text-accent hover:underline" onClick={() => setFiltrePert("toutes")}>
+          Aucune correspondance avec ce filtre.{" "}
+          <button className="font-medium text-accent hover:underline"
+            onClick={() => { setFiltrePert("toutes"); setFiltreNat("toutes"); }}>
             Voir toutes les correspondances
           </button>
         </p>

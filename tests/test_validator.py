@@ -330,7 +330,10 @@ def test_schema_extraction_inclut_nature():
     from scraper.extractor import SCHEMA_SUBSIDE, SYSTEM_PROMPT
     assert "nature" in SCHEMA_SUBSIDE["properties"]
     assert "nature" in SCHEMA_SUBSIDE["required"]
-    enum = SCHEMA_SUBSIDE["properties"]["nature"]["enum"]
-    assert {"appel_a_projets", "dispositif_permanent", "prix_concours",
-            "financement_instrument"} <= set(enum)
+    # Pas d'enum dans le schéma (structured outputs refusent enum+null) : les
+    # valeurs autorisées sont dans la description et bornées par pydantic.
+    desc = SCHEMA_SUBSIDE["properties"]["nature"]["description"]
+    for v in ("appel_a_projets", "dispositif_permanent", "prix_concours",
+              "financement_instrument"):
+        assert v in desc
     assert "nature" in SYSTEM_PROMPT  # la consigne est bien passée au modèle

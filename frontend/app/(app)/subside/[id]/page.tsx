@@ -6,11 +6,13 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  AlertTriangle, ArrowLeft, ArrowUpRight, Check, ClipboardList, FileText,
+  AlertTriangle, ArrowLeft, ArrowUpRight, Bookmark, Check, ClipboardList, FileText,
   History, Loader2, Minus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BadgeEcheance, pastille } from "@/components/compact-card";
+import { NatureBadge } from "@/components/nature-badge";
+import { NATURE_ICON, NATURE_SANS_APPEL } from "@/lib/nature";
 import { api, ApiError } from "@/lib/api";
 import { VERDICT_LABEL } from "@/lib/constants";
 import type { MatchingDetail } from "@/lib/types";
@@ -111,6 +113,10 @@ export default function SubsideDetailPage() {
   }
 
   const s = m.subside;
+  const natureSansAppel = !!s.nature && NATURE_SANS_APPEL.includes(s.nature);
+  // Toujours un composant valide : l'encart ne s'affiche que si natureSansAppel.
+  const NatureIcone = NATURE_ICON[s.nature ?? "dispositif_permanent"];
+  const organisme = s.organisme ?? "l'organisme";
 
   return (
     <motion.article
@@ -129,6 +135,7 @@ export default function SubsideDetailPage() {
             {VERDICT_LABEL[m.verdict] ?? m.verdict}
           </span>
           <BadgeEcheance deadline={s.deadline} permanent={s.permanent} />
+          <NatureBadge nature={s.nature} />
           {m.pertinence && <span className="text-[13px] text-ink-faint">Pertinence {m.pertinence}</span>}
         </div>
         <h1 className="mt-2.5 font-display text-[28px] font-semibold leading-tight text-ink">
@@ -148,14 +155,37 @@ export default function SubsideDetailPage() {
         )}
 
         {/* Le pont vers l'étage 3 : préparer sa candidature (jamais soumettre).
-            Masqué quand on regarde le subside DEPUIS une recherche : une
-            candidature n'appartient qu'au profil principal (lot 8.1). */}
+            Trois cas : depuis une recherche (masqué, lot 8.1) ; un dispositif
+            sans appel formel (encart honnête + « Suivre ») ; un appel classique. */}
         {m.profil_type === "recherche" ? (
           <p title="Disponible depuis votre profil principal"
             className="mt-4 inline-flex items-center gap-2 rounded-[var(--radius-ctrl)] border border-border bg-surface-2 px-3 py-2 text-sm text-ink-soft">
             <ClipboardList className="h-4 w-4 shrink-0" aria-hidden />
             Préparer une candidature se fait depuis votre profil principal.
           </p>
+        ) : natureSansAppel ? (
+          <div className="mt-4 rounded-[var(--radius-card)] border border-info/25 bg-info-soft p-4">
+            <p className="flex items-center gap-2 font-medium text-ink">
+              <NatureIcone className="h-4 w-4 shrink-0 text-info" aria-hidden />
+              {s.nature === "financement_instrument"
+                ? "Prêt / garantie — ce n'est pas une subvention"
+                : "Dispositif permanent"}
+            </p>
+            <p className="mt-1.5 text-sm text-ink-soft">
+              {s.nature === "financement_instrument"
+                ? `Cet instrument (prêt, garantie, avance récupérable) se sollicite en continu auprès de ${organisme}. Vérifiez votre capacité de remboursement avant de vous lancer — ce n'est pas de l'argent donné.`
+                : `Pas d'appel formel ni d'échéance : la démarche se fait en continu, directement auprès de ${organisme}.`}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2.5">
+              <a href={s.lien_officiel ?? s.url_source} target="_blank" rel="noopener noreferrer">
+                <Button size="sm">Voir la fiche officielle <ArrowUpRight className="h-4 w-4" /></Button>
+              </a>
+              <Button size="sm" variant="ghost" onClick={preparerCandidature} disabled={prepare}>
+                {prepare ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bookmark className="h-4 w-4" />}
+                Suivre ce dispositif
+              </Button>
+            </div>
+          </div>
         ) : (
           <div className="mt-4">
             <Button onClick={preparerCandidature} disabled={prepare}>

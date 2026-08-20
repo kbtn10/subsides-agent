@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea, CheckPill } from "@/components/ui/field";
 import { CompactCard } from "@/components/compact-card";
 import { FiltrePertinence, filtrerParPertinence, type FiltrePert } from "@/components/filtre-pertinence";
+import { FiltreNature, filtrerParNature, type FiltreNat } from "@/components/filtre-nature";
 import { IllusLoupe } from "@/components/illustrations";
 import { useToast } from "@/components/toast";
 import { useTitre } from "@/lib/use-titre";
@@ -88,6 +89,7 @@ export default function RecherchePage() {
   const [etat, setEtat] = useState<"repos" | "analyse" | "fini" | "erreur">("repos");
   const [resultats, setResultats] = useState<Matching[]>([]);
   const [filtrePert, setFiltrePert] = useState<FiltrePert>("toutes");
+  const [filtreNat, setFiltreNat] = useState<FiltreNat>("toutes");
   const [traites, setTraites] = useState(0);
   const [candidats, setCandidats] = useState<number | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -124,7 +126,8 @@ export default function RecherchePage() {
     stop();
     setEtat("analyse"); setResultats([]); vus.current.clear();
     setTraites(0); setCandidats(null); setErreur(null);
-    setProfilCourant(null); setSauvegardee(false); setFiltrePert("toutes");
+    setProfilCourant(null); setSauvegardee(false);
+    setFiltrePert("toutes"); setFiltreNat("toutes");
     try {
       const { profil_id, job_id } = await api.rechercheLibre({
         nom: "Recherche libre",
@@ -202,7 +205,7 @@ export default function RecherchePage() {
   };
 
   const eligibles = resultats.filter((m) => ELIGIBLE.includes(m.verdict));
-  const eligiblesAffiches = filtrerParPertinence(eligibles, filtrePert);
+  const eligiblesAffiches = filtrerParNature(filtrerParPertinence(eligibles, filtrePert), filtreNat);
   const enCours = etat === "analyse";
   const peutSauver = etat === "fini" && profilCourant != null && !sauvegardee;
 
@@ -277,7 +280,8 @@ export default function RecherchePage() {
       </div>
 
       {eligibles.length > 1 && (
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex flex-wrap items-center justify-end gap-x-5 gap-y-2">
+          <FiltreNature eligibles={eligibles} valeur={filtreNat} onChange={setFiltreNat} />
           <FiltrePertinence eligibles={eligibles} valeur={filtrePert} onChange={setFiltrePert} />
         </div>
       )}

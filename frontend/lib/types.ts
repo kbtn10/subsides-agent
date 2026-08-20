@@ -71,6 +71,7 @@ export interface SubsideResume {
   url_source: string;
   lien_officiel: string;   // url_source prête à ouvrir (no_cache=1 si TYPO3)
   zone_categorie: string;
+  nature: import("./nature").Nature | null;
   expire: boolean;
 }
 
@@ -191,6 +192,7 @@ export interface SubsideCarte {
   url_source: string;
   lien_officiel?: string;
   source_id: string;
+  nature?: import("./nature").Nature | null;
   expire?: boolean;
 }
 

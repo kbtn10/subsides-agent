@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { AlertTriangle, RotateCw } from "lucide-react";
 import type { Matching } from "@/lib/types";
 import { VERDICT_LABEL } from "@/lib/constants";
+import { NatureBadge } from "@/components/nature-badge";
 import { cn } from "@/lib/utils";
 
 export function joursAvant(deadline: string | null): number | null {
@@ -113,6 +114,7 @@ export function CompactCard({
           <span className="truncate">{s.organisme ?? s.source_id}</span>
           <span className="text-ink-faint">·</span>
           <BadgeEcheance deadline={s.deadline} permanent={s.permanent} />
+          <NatureBadge nature={s.nature} />
           {m.pertinence && <span className="text-ink-faint">pertinence {m.pertinence}</span>}
           {nbAVerifier > 0 && (
             <span className="inline-flex items-center gap-1 text-amber">

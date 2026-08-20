@@ -114,11 +114,13 @@ SCHEMA_SUBSIDE = {
             ),
         },
         "nature": {
+            # Pas d'enum ici : les structured outputs refusent enum + type
+            # nullable. La valeur est bornée à l'énumération côté pydantic
+            # (validator._nature_valide), comme pour zone_geographique.
             "type": ["string", "null"],
-            "enum": ["appel_a_projets", "dispositif_permanent", "prix_concours",
-                     "financement_instrument", None],
             "description": (
-                "Nature du soutien telle qu'elle ressort du texte : "
+                "Nature du soutien telle qu'elle ressort du texte. Réponds par "
+                "EXACTEMENT l'une de ces valeurs (avec les underscores) ou null : "
                 "appel_a_projets si candidature datée avec procédure ; "
                 "prix_concours si prix/concours/bourse avec jury ; "
                 "dispositif_permanent si aide/agrément/subvention accessible en "
