@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 type Fiche = {
   id: number; titre: string; source_id: string; statut: string;
   zone_categorie: string; deadline: string | null; url_source: string;
+  lien_officiel?: string;
 };
 
 type StatutScrape = Awaited<ReturnType<typeof api.statutScrape>>;
@@ -301,7 +302,7 @@ export default function AdminPage() {
                   <td className="px-4 py-2.5 text-ink-soft">{f.zone_categorie}</td>
                   <td className="px-4 py-2.5 text-ink-soft">{f.deadline ?? "—"}</td>
                   <td className="px-4 py-2.5">
-                    <a href={f.url_source} target="_blank" rel="noopener noreferrer"
+                    <a href={f.lien_officiel ?? f.url_source} target="_blank" rel="noopener noreferrer"
                       className="text-accent hover:underline" aria-label={`Ouvrir ${f.titre}`}>
                       <ExternalLink className="h-4 w-4" aria-hidden />
                     </a>

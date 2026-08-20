@@ -218,7 +218,10 @@ def stats(profil_id: int) -> dict:
     obtenus = [r for r in decides if r["statut"] == "obtenu"]
     taux = round(len(obtenus) / len(decides), 2) if len(decides) >= 3 else None
     return {
-        "total_candidatures": len(rows),
+        # Le compteur du bandeau reflète les candidatures ACTIVES (celles du
+        # tableau) : les abandonnées sont archivées et masquées par défaut, les
+        # inclure faisait afficher un total supérieur aux cartes visibles.
+        "total_candidatures": sum(1 for r in rows if r["statut"] != "abandonne"),
         "total_demande": total_demande,
         "total_obtenu": total_obtenu,
         "decisions": len(decides),

@@ -43,7 +43,9 @@ const PROMESSES = [
 ];
 
 function Section({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <section className={`mx-auto max-w-[1100px] px-4 sm:px-8 ${className}`}>{children}</section>;
+  // Pleine largeur comme l'app : plafond à 1680px seulement au-delà, sinon toute
+  // la largeur moins un padding latéral constant — plus de marges vides.
+  return <section className={`mx-auto max-w-[1680px] px-4 sm:px-6 lg:px-8 ${className}`}>{children}</section>;
 }
 
 export default function Home() {

@@ -190,7 +190,7 @@ function rendre() {
 
   $('corps').innerHTML = lignes.map(s => `
     <tr class="${s.expire ? 'expire' : ''}">
-      <td><a href="${echapper(s.url_source)}" target="_blank" rel="noopener noreferrer">${echapper(s.titre || '(sans titre)')}</a></td>
+      <td><a href="${echapper(s.lien_officiel || s.url_source)}" target="_blank" rel="noopener noreferrer">${echapper(s.titre || '(sans titre)')}</a></td>
       <td>${s.organisme ? echapper(s.organisme) : '<span class="muet">—</span>'}</td>
       <td class="nowrap">${echapper(SOURCES[s.source_id] || s.source_id)}</td>
       <td>${zoneCell(s)}</td>

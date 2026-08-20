@@ -86,7 +86,7 @@ export default function CandidaturePage() {
 
         <div className="mt-4 flex flex-wrap gap-3">
           {s?.url_source ? (
-            <a href={String(s.url_source)} target="_blank" rel="noopener noreferrer">
+            <a href={String(s.lien_officiel ?? s.url_source)} target="_blank" rel="noopener noreferrer">
               <Button variant="ghost" size="sm">Fiche officielle <ArrowUpRight className="h-4 w-4" /></Button>
             </a>
           ) : null}

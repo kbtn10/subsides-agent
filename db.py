@@ -91,6 +91,24 @@ def normaliser_url(url: str) -> str:
     return urlunsplit((scheme, host, path, query, ""))
 
 
+def lien_officiel(url_source: str) -> str:
+    """URL prête à OUVRIR par un humain.
+
+    Les fiches TYPO3 (culture.be & consorts) portent un cHash — un hash
+    d'intégrité des paramètres — qu'on retire à la normalisation (il varie avec
+    le contexte de navigation et casserait la dédup). Mais sans cHash, TYPO3
+    refuse d'afficher la fiche : « Erreur : Les paramètres pour afficher la
+    nouvelle sont incorrects ou absents ». Ajouter `no_cache=1` contourne la
+    validation du cHash et rend bien la fiche. On ne touche qu'aux URLs
+    concernées (tt_news sans cHash) et jamais à la clé de dédup stockée."""
+    if not url_source:
+        return url_source
+    bas = url_source.lower()
+    if "tt_news" in bas and "chash" not in bas and "no_cache" not in bas:
+        return url_source + ("&" if "?" in url_source else "?") + "no_cache=1"
+    return url_source
+
+
 def connect():
     """Connexion par thread (sqlite3 n'aime pas le partage entre threads)."""
     conn = getattr(_local, "conn", None)
@@ -592,6 +610,8 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
     # devient toute seule au fil du temps, sans re-scrape.
     dl = d.get("deadline")
     d["expire"] = bool(dl) and dl < date.today().isoformat()
+    # Lien ouvrable (ajoute no_cache=1 aux fiches TYPO3 sans cHash).
+    d["lien_officiel"] = lien_officiel(d.get("url_source"))
     return d
 
 

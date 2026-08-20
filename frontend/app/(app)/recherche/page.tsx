@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select, Textarea, CheckPill } from "@/components/ui/field";
 import { CompactCard } from "@/components/compact-card";
+import { FiltrePertinence, filtrerParPertinence, type FiltrePert } from "@/components/filtre-pertinence";
 import { IllusLoupe } from "@/components/illustrations";
 import { useToast } from "@/components/toast";
 import { useTitre } from "@/lib/use-titre";
@@ -86,6 +87,7 @@ export default function RecherchePage() {
 
   const [etat, setEtat] = useState<"repos" | "analyse" | "fini" | "erreur">("repos");
   const [resultats, setResultats] = useState<Matching[]>([]);
+  const [filtrePert, setFiltrePert] = useState<FiltrePert>("toutes");
   const [traites, setTraites] = useState(0);
   const [candidats, setCandidats] = useState<number | null>(null);
   const [erreur, setErreur] = useState<string | null>(null);
@@ -122,7 +124,7 @@ export default function RecherchePage() {
     stop();
     setEtat("analyse"); setResultats([]); vus.current.clear();
     setTraites(0); setCandidats(null); setErreur(null);
-    setProfilCourant(null); setSauvegardee(false);
+    setProfilCourant(null); setSauvegardee(false); setFiltrePert("toutes");
     try {
       const { profil_id, job_id } = await api.rechercheLibre({
         nom: "Recherche libre",
@@ -200,6 +202,7 @@ export default function RecherchePage() {
   };
 
   const eligibles = resultats.filter((m) => ELIGIBLE.includes(m.verdict));
+  const eligiblesAffiches = filtrerParPertinence(eligibles, filtrePert);
   const enCours = etat === "analyse";
   const peutSauver = etat === "fini" && profilCourant != null && !sauvegardee;
 
@@ -273,15 +276,30 @@ export default function RecherchePage() {
         {erreur && <p className="mt-3 text-sm text-danger">{erreur}</p>}
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-3 min-[1100px]:grid-cols-2 min-[1500px]:grid-cols-3">
+      {eligibles.length > 1 && (
+        <div className="mt-6 flex justify-end">
+          <FiltrePertinence eligibles={eligibles} valeur={filtrePert} onChange={setFiltrePert} />
+        </div>
+      )}
+
+      <div className="mt-3 grid grid-cols-1 gap-3 min-[1100px]:grid-cols-2 min-[1500px]:grid-cols-3">
         <AnimatePresence>
-          {eligibles.map((m, i) => (
+          {eligiblesAffiches.map((m, i) => (
             <motion.div key={m.subside.id} layout className="h-full">
               <CompactCard m={m} index={i} />
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
+
+      {eligibles.length > 0 && eligiblesAffiches.length === 0 && (
+        <p className="rounded-[var(--radius-card)] border border-dashed border-border px-4 py-6 text-center text-sm text-ink-soft">
+          Aucune correspondance de pertinence «&nbsp;{filtrePert}&nbsp;».{" "}
+          <button className="font-medium text-accent hover:underline" onClick={() => setFiltrePert("toutes")}>
+            Voir toutes les correspondances
+          </button>
+        </p>
+      )}
 
       {etat === "repos" && eligibles.length === 0 && (
         <div className="mt-6 rounded-[var(--radius-card)] border border-border bg-surface p-10 text-center">

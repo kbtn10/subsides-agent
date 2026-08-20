@@ -52,6 +52,19 @@ def test_normaliser_url(brut, attendu):
     assert normaliser_url(brut) == attendu
 
 
+def test_lien_officiel_typo3_ajoute_no_cache():
+    from db import lien_officiel
+    # Fiche TYPO3 sans cHash : sans no_cache=1, TYPO3 refuse d'afficher la fiche.
+    tt = "https://www.culture.be/x/detail?tx_ttnews%5Btt_news%5D=11571"
+    assert lien_officiel(tt) == tt + "&no_cache=1"
+    # cHash déjà présent : on ne touche à rien.
+    avec = tt + "&cHash=abc"
+    assert lien_officiel(avec) == avec
+    # URL non TYPO3 : inchangée. None : None.
+    assert lien_officiel("https://actiris.brussels/f/1") == "https://actiris.brussels/f/1"
+    assert lien_officiel(None) is None
+
+
 def test_normalisation_idempotente():
     u = "HTTPS://A.BE/x/?utm_source=z&b=2&a=1#frag"
     once = normaliser_url(u)

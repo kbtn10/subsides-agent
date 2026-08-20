@@ -69,6 +69,7 @@ export interface SubsideResume {
   permanent: boolean;
   montant: string | null;
   url_source: string;
+  lien_officiel: string;   // url_source prête à ouvrir (no_cache=1 si TYPO3)
   zone_categorie: string;
   expire: boolean;
 }
@@ -188,6 +189,7 @@ export interface SubsideCarte {
   deadline: string | null;
   permanent: boolean;
   url_source: string;
+  lien_officiel?: string;
   source_id: string;
   expire?: boolean;
 }

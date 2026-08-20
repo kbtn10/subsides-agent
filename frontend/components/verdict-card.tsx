@@ -47,7 +47,7 @@ export function VerdictCard({ m, index = 0 }: { m: Matching; index?: number }) {
       <div className="flex items-start justify-between gap-3">
         <h3 className="font-display text-lg font-semibold leading-snug text-ink">
           <a
-            href={s.url_source}
+            href={s.lien_officiel ?? s.url_source}
             target="_blank"
             rel="noopener noreferrer"
             className="hover:underline"
@@ -129,7 +129,7 @@ export function VerdictCard({ m, index = 0 }: { m: Matching; index?: number }) {
       )}
 
       <a
-        href={s.url_source}
+        href={s.lien_officiel ?? s.url_source}
         target="_blank"
         rel="noopener noreferrer"
         className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-accent hover:text-accent-hover"

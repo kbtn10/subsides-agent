@@ -228,7 +228,7 @@ export default function SubsideDetailPage() {
             <Meta libelle="Secteurs" valeur={s.secteurs?.join(", ") || null} />
           </dl>
           <div className="mt-5 flex flex-col gap-2.5 border-t border-border pt-5">
-            <a href={s.url_source} target="_blank" rel="noopener noreferrer">
+            <a href={s.lien_officiel ?? s.url_source} target="_blank" rel="noopener noreferrer">
               <Button className="w-full">Voir la fiche officielle <ArrowUpRight className="h-4 w-4" /></Button>
             </a>
             {s.lien_candidature && s.lien_candidature !== s.url_source && (
