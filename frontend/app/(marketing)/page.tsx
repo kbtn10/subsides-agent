@@ -35,6 +35,16 @@ const PROBLEMES = [
   { icon: AlertTriangle, t: "Aucune alerte", d: "Les portails officiels ne préviennent pas. Il faut y retourner soi-même, encore et encore." },
 ];
 
+// Repli si l'API /sources est injoignable au chargement (rare : appel local).
+const SOURCES_FALLBACK = [
+  "hub.brussels — Subsides et aides financières",
+  "Fondation Roi Baudouin — Appels à projets",
+  "COCOF — Appels à projets",
+  "equal.brussels — Égalité des chances",
+  "FWB Culture — Appels à projet/candidature",
+  "Portail FWB — Actualités & appels à projets",
+];
+
 const PROMESSES = [
   "On ne dit jamais « vous êtes éligible » — seulement « probablement éligible, vérifiez ces points ».",
   "Aucun montant, aucune date, aucun critère n'est inventé. Si l'information n'est pas dans la fiche, le champ reste vide.",
@@ -48,11 +58,56 @@ function Section({ children, className = "" }: { children: React.ReactNode; clas
   return <section className={`mx-auto max-w-[1680px] px-4 sm:px-6 lg:px-8 ${className}`}>{children}</section>;
 }
 
+/** Aperçu du produit : une carte de correspondance telle qu'elle apparaît dans
+ *  l'app. Montre concrètement ce que {PRODUCT_NAME} livre — pas une décoration.
+ *  Une carte fantôme derrière donne un peu de profondeur. */
+function ApercuCorrespondance() {
+  return (
+    <div className="relative">
+      <div aria-hidden
+        className="absolute -right-3 -top-3 h-full w-full rounded-[var(--radius-card)] border border-border bg-surface-2/70" />
+      <div className="relative overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface p-5 shadow-[var(--shadow-lift)]">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+            Une correspondance
+          </span>
+          <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-bold text-accent">
+            Probablement éligible
+          </span>
+        </div>
+        <div className="mt-3 border-l-2 border-accent pl-3">
+          <p className="font-display text-lg font-semibold leading-snug text-ink">
+            Appel à projets — Cohésion sociale 2026
+          </p>
+          <p className="mt-1 text-sm text-ink-soft">
+            COCOF <span className="text-ink-faint">·</span> J-24 <span className="text-ink-faint">·</span> pertinence forte
+          </p>
+        </div>
+        <ul className="mt-4 space-y-2 text-[14px] leading-relaxed">
+          <li className="flex gap-2 text-ink">
+            <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden /> Siège en Région bruxelloise
+          </li>
+          <li className="flex gap-2 text-ink">
+            <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden /> Secteur éligible : cohésion sociale
+          </li>
+          <li className="flex gap-2 text-amber">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden /> À vérifier : agrément COCOF requis
+          </li>
+        </ul>
+        <p className="mt-4 border-t border-border pt-3 text-xs text-ink-faint">
+          Avec le lien vers la fiche officielle — la source fait foi, pas nous.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
   const reduce = useReducedMotion();
   const [stats, setStats] = useState<{ sources: number; subsides: number } | null>(null);
+  const [sourcesNoms, setSourcesNoms] = useState<string[]>([]);
 
   // Un visiteur déjà connecté n'a rien à faire sur la page de vente.
   useEffect(() => {
@@ -61,7 +116,11 @@ export default function Home() {
 
   useEffect(() => {
     Promise.all([api.sources(), api.derniereMaj()])
-      .then(([s, m]) => setStats({ sources: s.filter((x) => x.actif).length, subsides: m.total_subsides }))
+      .then(([s, m]) => {
+        const actives = s.filter((x) => x.actif);
+        setStats({ sources: actives.length, subsides: m.total_subsides });
+        setSourcesNoms(actives.map((x) => x.nom));
+      })
       .catch(() => setStats(null));
   }, []);
 
@@ -75,11 +134,11 @@ export default function Home() {
     <>
       {/* 1 — Hero */}
       <Section className="py-14 sm:py-24">
+       <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,440px)] xl:gap-16">
         <motion.div
           initial={reduce ? false : { opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: "easeOut" }}
-          className="max-w-2xl"
         >
           <span className="inline-block rounded-full bg-accent-soft px-3 py-1 text-sm font-medium text-accent">
             Pour les ASBL bruxelloises
@@ -102,6 +161,17 @@ export default function Home() {
             Gratuit pendant la phase de test · Aucune carte bancaire
           </p>
         </motion.div>
+
+        {/* Aperçu du produit — masqué sous lg (le hero mobile reste sobre). */}
+        <motion.div
+          initial={reduce ? false : { opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: reduce ? 0 : 0.15, ease: "easeOut" }}
+          className="hidden lg:block"
+        >
+          <ApercuCorrespondance />
+        </motion.div>
+       </div>
       </Section>
 
       {/* 2 — Le problème */}
@@ -177,51 +247,96 @@ export default function Home() {
 
       {/* 5 — Les sources */}
       <Section className="border-t border-border py-14 sm:py-20">
-        <Reveal className="max-w-2xl">
-          <h2 className="font-display text-3xl font-semibold text-ink">
-            Des sources officielles, et rien d&apos;autre
-          </h2>
-          <p className="mt-4 text-lg leading-relaxed text-ink-soft">
-            Nous relisons chaque nuit les portails publics qui publient des appels à
-            projets pour les associations bruxelloises — région, commissions
-            communautaires, organismes d&apos;intérêt public. Rien n&apos;est reformulé :
-            les fiches sont extraites telles qu&apos;elles sont publiées, avec un lien
-            vers l&apos;original.
-          </p>
-          {stats && (
-            <div className="mt-7 flex flex-wrap gap-3">
-              <div className="rounded-[var(--radius-card)] border border-border bg-surface px-5 py-4">
-                <p className="font-display text-2xl font-semibold text-accent">{stats.sources}</p>
-                <p className="mt-1 text-sm text-ink-soft">sources officielles surveillées</p>
+        <Reveal className="grid gap-10 lg:grid-cols-2 lg:gap-16">
+          <div>
+            <h2 className="font-display text-3xl font-semibold text-ink">
+              Des sources officielles, et rien d&apos;autre
+            </h2>
+            <p className="mt-4 text-lg leading-relaxed text-ink-soft">
+              Nous relisons chaque nuit les portails publics qui publient des appels à
+              projets pour les associations bruxelloises — région, commissions
+              communautaires, organismes d&apos;intérêt public. Rien n&apos;est reformulé :
+              les fiches sont extraites telles qu&apos;elles sont publiées, avec un lien
+              vers l&apos;original.
+            </p>
+            {stats && (
+              <div className="mt-7 flex flex-wrap gap-3">
+                <div className="rounded-[var(--radius-card)] border border-border bg-surface px-5 py-4">
+                  <p className="font-display text-2xl font-semibold text-accent">{stats.sources}</p>
+                  <p className="mt-1 text-sm text-ink-soft">sources officielles surveillées</p>
+                </div>
+                <div className="rounded-[var(--radius-card)] border border-border bg-surface px-5 py-4">
+                  <p className="font-display text-2xl font-semibold text-ink">{stats.subsides}</p>
+                  <p className="mt-1 text-sm text-ink-soft">fiches suivies aujourd&apos;hui</p>
+                </div>
               </div>
-              <div className="rounded-[var(--radius-card)] border border-border bg-surface px-5 py-4">
-                <p className="font-display text-2xl font-semibold text-ink">{stats.subsides}</p>
-                <p className="mt-1 text-sm text-ink-soft">fiches suivies aujourd&apos;hui</p>
-              </div>
-            </div>
-          )}
-          <p className="mt-5 text-sm leading-relaxed text-ink-faint">
-            Nous respectons le fichier robots.txt de chaque site, espaçons nos requêtes,
-            et ne collectons aucune donnée personnelle sur ces portails.
-          </p>
+            )}
+            <p className="mt-5 text-sm leading-relaxed text-ink-faint">
+              Nous respectons le fichier robots.txt de chaque site, espaçons nos requêtes,
+              et ne collectons aucune donnée personnelle sur ces portails.
+            </p>
+          </div>
+
+          {/* Les portails réellement surveillés, nommés — la crédibilité passe
+              par la source. */}
+          <div className="self-center rounded-[var(--radius-card)] border border-border bg-surface p-6 sm:p-7">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+              Les portails que nous surveillons
+            </p>
+            <ul className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+              {(sourcesNoms.length ? sourcesNoms : SOURCES_FALLBACK).map((nom) => (
+                <li key={nom} className="flex items-start gap-2.5 text-[15px] leading-snug text-ink">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden />
+                  <span>{nom}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-5 border-t border-border pt-4 text-sm text-ink-soft">
+              La liste s&apos;étoffe : de nouveaux portails régionaux et communautaires
+              sont ajoutés au fil de l&apos;eau.
+            </p>
+          </div>
         </Reveal>
       </Section>
 
       {/* 6 — Appel final */}
       <Section className="border-t border-border py-16 sm:py-24">
-        <Reveal className="max-w-2xl">
-          <h2 className="font-display text-3xl font-semibold leading-tight text-ink sm:text-4xl">
-            Deux minutes maintenant,
-            <br />une veille pour toute l&apos;année.
-          </h2>
-          <p className="mt-4 text-lg text-ink-soft">
-            Créez votre profil et voyez immédiatement ce qui vous correspond aujourd&apos;hui.
-          </p>
-          <div className="mt-7 flex flex-wrap gap-3">
-            <Link href="/sign-up"><Button size="lg">Créer mon profil</Button></Link>
-            <Link href="/confidentialite">
-              <Button size="lg" variant="ghost">Ce qu&apos;on fait de vos données</Button>
-            </Link>
+        <Reveal className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+          <div>
+            <h2 className="font-display text-3xl font-semibold leading-tight text-ink sm:text-4xl">
+              Deux minutes maintenant,
+              <br />une veille pour toute l&apos;année.
+            </h2>
+            <p className="mt-4 text-lg text-ink-soft">
+              Créez votre profil et voyez immédiatement ce qui vous correspond aujourd&apos;hui.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link href="/sign-up"><Button size="lg">Créer mon profil</Button></Link>
+              <Link href="/confidentialite">
+                <Button size="lg" variant="ghost">Ce qu&apos;on fait de vos données</Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Récapitulatif de la valeur, pour équilibrer le bloc et rappeler
+              l'essentiel juste avant la décision. */}
+          <div className="rounded-[var(--radius-card)] border border-border bg-surface p-6 sm:p-7">
+            <p className="font-display text-lg font-semibold text-ink">Concrètement, vous recevez</p>
+            <ul className="mt-4 space-y-4">
+              {[
+                { t: "Un tri motivé, pas une liste brute", d: "Un verdict par appel, avec ce qui joue en votre faveur." },
+                { t: "Les points à vérifier", d: "Ce qu'il reste à confirmer avant de vous lancer dans le dossier." },
+                { t: "Le lien vers la fiche officielle", d: "La source fait foi : vous décidez sur la pièce d'origine." },
+              ].map(({ t, d }) => (
+                <li key={t} className="flex gap-3">
+                  <Check className="mt-0.5 h-5 w-5 shrink-0 text-accent" aria-hidden />
+                  <div>
+                    <p className="font-medium text-ink">{t}</p>
+                    <p className="mt-0.5 text-[15px] leading-relaxed text-ink-soft">{d}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         </Reveal>
       </Section>
