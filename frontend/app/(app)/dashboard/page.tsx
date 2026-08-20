@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CompactCard } from "@/components/compact-card";
 import { RappelsCandidatures } from "@/components/rappels-candidatures";
+import { CoffreResume } from "@/components/coffre-resume";
 import { IllusRadar } from "@/components/illustrations";
 import { StatTile } from "@/components/stat-tile";
 import { AnimatedNumber } from "@/components/animated-number";
@@ -232,6 +233,7 @@ function DashboardInner() {
       {/* Les rappels de candidatures n'appartiennent qu'au profil principal :
           une recherche ne crée pas de candidature (lot 8.1). */}
       {pidRappels && !contexteRecherche && <RappelsCandidatures profilId={pidRappels} />}
+      {pidRappels && !contexteRecherche && <CoffreResume profilId={pidRappels} />}
 
       {phase === "chargement" && (
         <p className="flex items-center gap-2 text-ink-soft">

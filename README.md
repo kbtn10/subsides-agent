@@ -675,6 +675,54 @@ Cette v1 collecte le **strict minimum** et ne récolte **aucune donnée de conta
 
 ---
 
+## Cycle de vie du subside (lot 10)
+
+Subsidia couvre désormais **tout** le cycle, pas seulement la saison des appels :
+
+- **Obligations post-octroi (10B)** — au passage d'une candidature en *obtenu*,
+  on relève du règlement (avec citation, `temperature=0`) les obligations qui
+  suivent : justifications datées, rapports, communication/logo, versement du
+  solde. Aucune date inventée — une date absolue n'est posée que si le texte
+  l'énonce ; un délai relatif (« dans les 3 mois suivant la fin du projet ») est
+  stocké en jours, l'échéance étant calculée à partir d'une **date de fin de
+  projet saisie par l'utilisateur**. Ces échéances entrent dans la page
+  Échéances (badge *justification*) et les rappels du dashboard.
+- **Mémoire des dossiers (10C)** — sur un appel récurrent où l'ASBL avait
+  candidaté à l'édition précédente, un encart propose de **repartir de ce
+  dossier** (montant + notes repris ; la checklist, elle, est régénérée depuis
+  le règlement à jour — jamais recopiée).
+
+## Coffre documentaire (lot 10A)
+
+Le coffre garde les documents récurrents de l'ASBL (statuts, comptes annuels,
+composition du CA, attestations…), avec un **suivi de fraîcheur** (péremption
+par catégorie : ONSS 3 mois, bancaire 6, comptes/CA/rapport 12, agrément selon
+l'échéance saisie ; statuts sans péremption) et un **pont vers les checklists** :
+une pièce demandée par un appel affiche « ✓ Dans votre coffre » si le document
+y est à jour.
+
+**C'est la surface RGPD la plus sensible du produit** — traitée en conséquence :
+
+- **Feature flag `COFFRE_ACTIF`** (défaut `false`). Tant qu'il est false :
+  aucune entrée dans l'UI, et tous les endpoints répondent `403`. Il ne passera
+  `true` qu'en **production, sur un hébergement sérieux**. Le code, les tests et
+  l'UI sont complets et testables en dev (flag true en local).
+- **Chiffrement au repos** (Fernet, `cryptography`). Clé serveur `DOCUMENTS_KEY`
+  (générer : `python -c "from cryptography.fernet import Fernet;
+  print(Fernet.generate_key().decode())"`, **jamais committée**). Si le disque
+  fuit, les fichiers sont illisibles. Sans clé, l'upload est refusé.
+- **Stockage** : répertoire dédié `DATA_DOCUMENTS` (défaut `data/documents/`,
+  **hors git**), nom de fichier **aléatoire (uuid)** — le nom d'origine n'est
+  jamais écrit sur le disque. Téléchargement **uniquement** via endpoint
+  authentifié + cloisonné (jamais servi statiquement) : le serveur déchiffre et
+  renvoie le contenu en pièce jointe.
+- **Limites** : 10 Mo/fichier, types `pdf/docx/xlsx/png/jpg`,
+  `MAX_DOCUMENTS_PAR_PROFIL` (défaut 30). Le remplacement **archive** l'ancien
+  (versions précédentes accessibles) ; la suppression est **définitive** (le
+  fichier chiffré est réellement effacé du disque, pas un soft-delete).
+- **Rétention & suppression** : `DELETE /profils` efface **physiquement** les
+  fichiers chiffrés du profil avant la cascade DB. Aucune conservation cachée.
+
 ## Accompagnement de la candidature — étage 3 (lot 7)
 
 Découvrir et matcher, c'était les étages 1-2. Le lot 7 accompagne l'ASBL

@@ -4,7 +4,8 @@
 import { API_URL } from "./constants";
 import type {
   Candidature, CandidatureDetail, CandidatureStats, ChecklistEtat, ChecklistItem,
-  Conformite, DashboardData, DerniereMaj, JobStatus, Matching, MatchingDetail,
+  CoffreConfig, CoffreEtat, CoffreVersion, Conformite, DashboardData, DerniereMaj,
+  DocumentCoffre, JobStatus, Matching, MatchingDetail,
   Obligation, ObligationEcheance, ObligationsEtat,
   Profil, ProfilInput, Recherche, RegistreEntry, Resume, ScrapeRun, Source, SourceSante,
   StatutCandidature,
@@ -212,6 +213,46 @@ export const api = {
 
   supprimerObligation: (obligationId: number, getToken?: GetToken) =>
     req<{ supprime: boolean }>(`/obligation/${obligationId}`, { method: "DELETE", getToken }),
+
+  // Coffre documentaire (lot 10A)
+  coffreConfig: (getToken?: GetToken) =>
+    req<CoffreConfig>("/coffre/config", { getToken }),
+
+  coffre: (profilId: number, getToken?: GetToken) =>
+    req<CoffreEtat>(`/coffre/${profilId}`, { getToken }),
+
+  coffreVersions: (profilId: number, categorie: string, getToken?: GetToken) =>
+    req<{ versions: CoffreVersion[] }>(`/coffre/${profilId}/versions/${categorie}`, { getToken }),
+
+  supprimerDocument: (documentId: number, getToken?: GetToken) =>
+    req<{ supprime: boolean }>(`/document/${documentId}`, { method: "DELETE", getToken }),
+
+  // Upload multipart (pas de JSON) : on n'utilise pas req().
+  uploaderDocument: async (profilId: number, form: FormData, getToken?: GetToken): Promise<DocumentCoffre> => {
+    const headers: Record<string, string> = {};
+    if (getToken) { const t = await getToken(); if (t) headers["Authorization"] = `Bearer ${t}`; }
+    const res = await fetch(`${API_URL}/coffre/${profilId}/upload`, { method: "POST", headers, body: form });
+    if (!res.ok) {
+      let detail = `Erreur ${res.status}`;
+      try { const j = await res.json(); if (typeof j.detail === "string") detail = j.detail; } catch {}
+      throw new ApiError(detail, res.status);
+    }
+    return res.json();
+  },
+
+  // Téléchargement authentifié : jamais un lien statique. On récupère le blob
+  // (déchiffré côté serveur) et on déclenche l'enregistrement.
+  telechargerDocument: async (documentId: number, nom: string, getToken?: GetToken): Promise<void> => {
+    const headers: Record<string, string> = {};
+    if (getToken) { const t = await getToken(); if (t) headers["Authorization"] = `Bearer ${t}`; }
+    const res = await fetch(`${API_URL}/document/${documentId}/download`, { headers });
+    if (!res.ok) throw new ApiError(`Erreur ${res.status}`, res.status);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = nom; document.body.appendChild(a); a.click();
+    a.remove(); URL.revokeObjectURL(url);
+  },
 };
 
 export type {

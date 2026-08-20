@@ -2,19 +2,60 @@
 
 import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
-import { ChevronDown, FileText, Loader2, Plus, Quote, RefreshCw, Sparkles, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, Download, FileText, Loader2, Plus, Quote, RefreshCw, Sparkles, Trash2, Vault } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { api } from "@/lib/api";
-import type { ChecklistEtat, ChecklistItem } from "@/lib/types";
+import type { ChecklistEtat, ChecklistItem, RapprochementCoffre } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const TYPE_LABEL: Record<string, string> = {
   document: "Document", formulaire: "Formulaire", condition_forme: "Condition de forme",
 };
 
-function Item({ item, onToggle, onSupprimer }: {
-  item: ChecklistItem; onToggle: (v: boolean) => void; onSupprimer: () => void;
+/** Pont vers le coffre : ce que le coffre sait de cette pièce (lot 10A). */
+function LigneCoffre({ coffre, onUtiliser }: {
+  coffre: RapprochementCoffre; onUtiliser: () => void;
+}) {
+  const { getToken } = useAuth();
+  if (coffre.present && coffre.a_jour) {
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-2 rounded-[var(--radius-ctrl)] bg-accent-soft/60 px-2.5 py-1.5 text-[12px]">
+        <span className="inline-flex items-center gap-1 font-medium text-accent">
+          <Vault className="h-3.5 w-3.5" aria-hidden /> Dans votre coffre : {coffre.nom}
+        </span>
+        {coffre.document_id && (
+          <button onClick={() => api.telechargerDocument(coffre.document_id!, coffre.nom ?? "document", getToken).catch(() => {})}
+            className="inline-flex items-center gap-1 text-ink-soft hover:text-ink">
+            <Download className="h-3 w-3" /> ouvrir
+          </button>
+        )}
+        <button onClick={onUtiliser} className="font-semibold text-accent hover:underline">
+          Utiliser ce document
+        </button>
+      </div>
+    );
+  }
+  if (coffre.present) {
+    return (
+      <Link href="/coffre"
+        className="mt-2 inline-flex items-center gap-1 rounded-[var(--radius-ctrl)] bg-amber-soft px-2.5 py-1.5 text-[12px] font-medium text-amber hover:underline">
+        <Vault className="h-3.5 w-3.5" aria-hidden /> Dans votre coffre, mais à renouveler
+      </Link>
+    );
+  }
+  return (
+    <Link href="/coffre"
+      className="mt-2 inline-flex items-center gap-1 rounded-[var(--radius-ctrl)] bg-surface-2 px-2.5 py-1.5 text-[12px] text-ink-soft hover:text-ink">
+      <Vault className="h-3.5 w-3.5" aria-hidden /> À déposer dans votre coffre ({coffre.label})
+    </Link>
+  );
+}
+
+function Item({ item, coffre, onToggle, onSupprimer }: {
+  item: ChecklistItem; coffre?: RapprochementCoffre;
+  onToggle: (v: boolean) => void; onSupprimer: () => void;
 }) {
   const [citVisible, setCitVisible] = useState(false);
   return (
@@ -43,6 +84,7 @@ function Item({ item, onToggle, onSupprimer }: {
               « {item.source_citation} »
             </p>
           )}
+          {coffre && <LigneCoffre coffre={coffre} onUtiliser={() => onToggle(true)} />}
         </div>
         <button onClick={onSupprimer} aria-label="Supprimer"
           className="shrink-0 text-ink-faint hover:text-danger">
@@ -138,7 +180,7 @@ export function ChecklistSection({ candidatureId, initial }: {
       {total > 0 && (
         <ul className="mt-4 space-y-2">
           {etat.items.map((it) => (
-            <Item key={it.id} item={it}
+            <Item key={it.id} item={it} coffre={etat.coffre?.[it.id]}
               onToggle={(v) => toggle(it, v)} onSupprimer={() => supprimer(it)} />
           ))}
         </ul>

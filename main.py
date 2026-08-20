@@ -9,9 +9,11 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import Body, Depends, FastAPI, Header, HTTPException, Query
+from fastapi import (
+    Body, Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile,
+)
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import ValidationError
 
 load_dotenv()
@@ -22,6 +24,7 @@ import db  # noqa: E402  (après load_dotenv : db lit DB_PATH à l'import)
 import etage3  # noqa: E402
 import jobs  # noqa: E402
 import obligations as oblig_mod  # noqa: E402
+import coffre as coffre_mod  # noqa: E402
 import matching  # noqa: E402
 import profils  # noqa: E402
 from config.sources import SOURCES  # noqa: E402
@@ -293,8 +296,10 @@ async def maj_profil(profil_id: int, body: dict = Body(...),
 
 @app.delete("/profils/{profil_id}")
 async def supprimer_profil(profil_id: int, user: dict | None = Depends(utilisateur_optionnel)):
-    """RGPD : supprime le profil ET ses matchings."""
+    """RGPD : supprime le profil ET ses matchings, candidatures, documents."""
     _verifier_proprietaire(user, profil_id)
+    # Efface PHYSIQUEMENT les fichiers chiffrés du coffre avant la cascade DB.
+    coffre_mod.supprimer_fichiers_du_profil(profil_id)
     if not profils.supprimer_profil(profil_id):
         raise HTTPException(status_code=404, detail="profil inconnu")
     return {"supprime": True}
@@ -496,6 +501,9 @@ async def get_candidature(candidature_id: int, user: dict | None = Depends(utili
     _verifier_candidature(user, candidature_id)
     c = cand_mod.get_candidature_enrichie(candidature_id)
     c["checklist"] = etage3.etat_checklist(candidature_id)
+    # Pont checklist <-> coffre (lot 10A) : vide si le flag est off.
+    c["checklist"]["coffre"] = coffre_mod.rapprochement_checklist(
+        c["profil_id"], c["checklist"]["items"])
     c["copilote"] = etage3.historique_copilote(candidature_id)
     c["obligations"] = oblig_mod.etat_obligations(candidature_id)
     if c.get("subside"):
@@ -628,6 +636,83 @@ async def supprimer_obligation(obligation_id: int, user: dict | None = Depends(u
     _verifier_obligation(user, obligation_id)
     oblig_mod.supprimer(obligation_id)
     return {"supprime": True}
+
+
+# ---- Coffre documentaire (lot 10A, derrière le flag COFFRE_ACTIF) ----
+
+def _exiger_coffre():
+    if not coffre_mod.actif():
+        raise HTTPException(status_code=403, detail="fonctionnalité non activée")
+
+
+def _verifier_document(user: dict | None, document_id: int):
+    if user is not None and coffre_mod.user_de_document(document_id) != user["id"]:
+        raise HTTPException(status_code=403, detail="document hors de votre périmètre")
+
+
+@app.get("/coffre/config")
+async def coffre_config():
+    """Le front sait s'il doit montrer le coffre + les catégories."""
+    return {"actif": coffre_mod.actif(),
+            "categories": [{"id": k, "label": v["label"],
+                            "peremption_mois": v["peremption_mois"]}
+                           for k, v in coffre_mod.CATEGORIES.items()]}
+
+
+@app.get("/coffre/{profil_id}")
+async def get_coffre(profil_id: int, user: dict | None = Depends(utilisateur_optionnel)):
+    _exiger_coffre()
+    _verifier_proprietaire(user, profil_id)
+    return coffre_mod.etat_coffre(profil_id)
+
+
+@app.post("/coffre/{profil_id}/upload")
+async def uploader_document(profil_id: int, fichier: UploadFile = File(...),
+                            categorie: str = Form(...), nom_affiche: str = Form(""),
+                            date_document: str | None = Form(None),
+                            expire_le: str | None = Form(None),
+                            user: dict | None = Depends(utilisateur_optionnel)):
+    _exiger_coffre()
+    _verifier_proprietaire(user, profil_id)
+    data = await fichier.read()
+    try:
+        return coffre_mod.uploader(
+            profil_id, categorie, nom_affiche or (fichier.filename or ""),
+            fichier.filename or "document", fichier.content_type or "",
+            data, date_document or None, expire_le or None)
+    except coffre_mod.DocumentRefuse as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except coffre_mod.CoffreDesactive:
+        raise HTTPException(status_code=403, detail="fonctionnalité non activée")
+
+
+@app.get("/coffre/{profil_id}/versions/{categorie}")
+async def coffre_versions(profil_id: int, categorie: str,
+                          user: dict | None = Depends(utilisateur_optionnel)):
+    _exiger_coffre()
+    _verifier_proprietaire(user, profil_id)
+    return {"versions": coffre_mod.versions(profil_id, categorie)}
+
+
+@app.get("/document/{document_id}/download")
+async def telecharger_document(document_id: int, user: dict | None = Depends(utilisateur_optionnel)):
+    _exiger_coffre()
+    _verifier_document(user, document_id)
+    res = coffre_mod.telecharger(document_id)
+    if res is None:
+        raise HTTPException(status_code=404, detail="document introuvable")
+    nom, mime, contenu = res
+    # Jamais servi statiquement : on renvoie le contenu déchiffré en pièce jointe.
+    from urllib.parse import quote
+    return Response(content=contenu, media_type=mime,
+                    headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(nom)}"})
+
+
+@app.delete("/document/{document_id}")
+async def supprimer_document(document_id: int, user: dict | None = Depends(utilisateur_optionnel)):
+    _exiger_coffre()
+    _verifier_document(user, document_id)
+    return {"supprime": coffre_mod.supprimer(document_id)}
 
 
 # ---- Conformité ----

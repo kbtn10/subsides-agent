@@ -256,11 +256,75 @@ export interface ChecklistItem {
   coche: number;
 }
 
+// ==================== Coffre documentaire (lot 10A) ====================
+
+export type EtatFraicheur = "a_jour" | "expire_bientot" | "a_renouveler";
+
+export interface Fraicheur {
+  etat: EtatFraicheur;
+  message: string;
+  expire_le?: string;
+}
+
+export interface DocumentCoffre {
+  id: number;
+  nom_affiche: string;
+  nom_fichier: string | null;
+  taille: number;
+  mime: string;
+  date_document: string | null;
+  expire_le: string | null;
+  uploade_le: string;
+}
+
+export interface CoffreCategorie {
+  id: string;
+  label: string;
+  document: DocumentCoffre | null;
+  fraicheur: Fraicheur | null;
+  versions_count: number;
+}
+
+export interface CoffreEtat {
+  categories: CoffreCategorie[];
+  a_jour: number;
+  a_renouveler: number;
+  total: number;
+  max: number;
+}
+
+export interface CoffreConfig {
+  actif: boolean;
+  categories: { id: string; label: string; peremption_mois: number | null }[];
+}
+
+export interface CoffreVersion {
+  id: number;
+  nom_affiche: string;
+  nom_fichier: string | null;
+  uploade_le: string;
+  taille: number;
+  courant: boolean;
+}
+
+// Pont checklist -> coffre : par item_id de checklist reconnu.
+export interface RapprochementCoffre {
+  categorie: string;
+  label: string;
+  present: boolean;
+  a_jour: boolean;
+  nom: string | null;
+  document_id: number | null;
+  date: string | null;
+  fraicheur: Fraicheur | Record<string, never>;
+}
+
 export interface ChecklistEtat {
   items: ChecklistItem[];
   generee: boolean;
   texte_absent: boolean;
   fiche_a_change: boolean;
+  coffre?: Record<number, RapprochementCoffre>;
   depuis_cache?: boolean;
   erreur?: string;
   cout?: number;

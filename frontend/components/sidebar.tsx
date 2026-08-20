@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarClock, ClipboardList, LayoutGrid, PanelLeftClose,
-  PanelLeftOpen, Search, Shield, UserCog } from "lucide-react";
+  PanelLeftOpen, Search, Shield, UserCog, Vault } from "lucide-react";
 import { api } from "@/lib/api";
 import { useEstAdmin } from "@/lib/use-admin";
+import { useCoffreActif } from "@/lib/use-coffre";
 import { PRODUCT_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { CompteBouton } from "./compte-bouton";
@@ -24,6 +25,7 @@ const NAV = [
 export function Sidebar({ replie, onBasculer }: { replie: boolean; onBasculer: () => void }) {
   const pathname = usePathname();
   const estAdmin = useEstAdmin();
+  const coffreActif = useCoffreActif();
   const [nbSources, setNbSources] = useState<number | null>(null);
 
   useEffect(() => {
@@ -82,6 +84,7 @@ export function Sidebar({ replie, onBasculer }: { replie: boolean; onBasculer: (
       </div>
       <nav className={cn("flex flex-1 flex-col gap-1 py-2", replie ? "px-2" : "px-3")}>
         {NAV.map((n) => lien(n.href, n.label, n.icon, n.match))}
+        {coffreActif && lien("/coffre", "Mon coffre", Vault)}
         {estAdmin && lien("/admin", "Admin", Shield)}
       </nav>
       <div className={cn("border-t border-border py-3", replie ? "px-2" : "px-3")}>

@@ -350,6 +350,27 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_copilote_cand  ON copilote_messages(candidature_id);
         CREATE INDEX IF NOT EXISTS idx_oblig_cand     ON obligations(candidature_id);
 
+        -- ================= Lot 10A : coffre documentaire =====================
+        -- Documents d'ASBL (statuts, comptes, CA…). Surface RGPD sensible :
+        -- fichiers CHIFFRÉS au repos (voir coffre.py), noms sur disque = uuid,
+        -- jamais le nom d'origine. Derrière le flag COFFRE_ACTIF.
+        CREATE TABLE IF NOT EXISTS documents (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            profil_id            INTEGER NOT NULL,
+            categorie            TEXT NOT NULL,
+            nom_affiche          TEXT NOT NULL,
+            nom_fichier          TEXT,           -- nom original (affichage seul)
+            chemin_stockage      TEXT NOT NULL,  -- uuid.enc sur disque
+            taille               INTEGER,
+            mime                 TEXT,
+            date_document        TEXT,           -- date propre au document (exercice…)
+            expire_le            TEXT,           -- calculée à l'upload selon la catégorie
+            uploade_le           TEXT NOT NULL,
+            remplace_document_id INTEGER,        -- version précédente archivée
+            FOREIGN KEY(profil_id) REFERENCES profils(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_doc_profil ON documents(profil_id);
+
         -- Lot 9 : registre des sources (couverture visible et honnête). Le
         -- config/sources.py reste la vérité d'exécution ; ceci en est le miroir
         -- lisible, avec les différées et les écartées.

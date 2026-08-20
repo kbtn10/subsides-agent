@@ -15,3 +15,8 @@ APScheduler>=3.10
 PyJWT[crypto]>=2.8
 # Lot 5 : texte natif des règlements PDF (pas d'OCR)
 pypdf>=5.0
+
+# Lot 10A : coffre documentaire — chiffrement au repos des fichiers ASBL
+cryptography>=42
+# Lot 10A : uploads multipart du coffre
+python-multipart>=0.0.9
