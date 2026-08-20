@@ -44,6 +44,7 @@ VIDE = {
     "zone_categorie": "(zone_categorie IS NULL OR zone_categorie = 'inconnue')",
     "zone_geographique": "(zone_geographique IS NULL OR zone_geographique = '')",
     "type_beneficiaire": "(type_beneficiaire IS NULL OR type_beneficiaire IN ('[]',''))",
+    "nature": "(nature IS NULL OR nature = '')",
 }
 
 

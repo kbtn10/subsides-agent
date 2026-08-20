@@ -367,3 +367,25 @@ def test_raw_text_absent_de_la_liste_present_au_detail(db):
     db.upsert_subside(fiche(), "hub", raw_text="brut")
     assert "raw_text" not in db.lister_subsides()[0]
     assert db.get_subside(db.lister_subsides()[0]["id"])["raw_text"] == "brut"
+
+
+# --- Nature du soutien (lot 9) ---------------------------------------------
+
+def test_nature_persistee_a_l_insert(db):
+    db.upsert_subside(fiche(nature="dispositif_permanent"), "hub", text_hash="h1")
+    r = db.get_subside(db.id_par_url("https://info.hub.brussels/subsides/finexpo"))
+    assert r["nature"] == "dispositif_permanent"
+
+
+def test_backfill_nature_via_inchange_coalesce(db):
+    # 1) fiche insérée SANS nature (fiche d'avant le lot 9).
+    db.upsert_subside(fiche(), "hub", text_hash="h1")
+    sid = db.id_par_url("https://info.hub.brussels/subsides/finexpo")
+    assert db.get_subside(sid)["nature"] is None
+    # 2) backfill : ré-extraction, même contenu (inchange) mais nature trouvée.
+    st = db.upsert_subside(fiche(nature="financement_instrument"), "hub", text_hash="h1")
+    assert st == "inchange"
+    assert db.get_subside(sid)["nature"] == "financement_instrument"
+    # 3) un run ultérieur qui ne trouve PAS la nature ne l'écrase pas (COALESCE).
+    db.upsert_subside(fiche(nature=None), "hub", text_hash="h1")
+    assert db.get_subside(sid)["nature"] == "financement_instrument"

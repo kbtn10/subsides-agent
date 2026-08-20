@@ -251,7 +251,8 @@ def resultats(profil_id) -> list[dict]:
             continue
         m["subside"] = {k: s[k] for k in (
             "id", "titre", "organisme", "source_id", "deadline", "permanent",
-            "montant", "url_source", "lien_officiel", "zone_categorie", "expire") if k in s}
+            "montant", "url_source", "lien_officiel", "zone_categorie", "nature",
+            "expire") if k in s}
         out.append(m)
     out.sort(key=lambda m: (
         ordre_verdict.get(m["verdict"], 4),
@@ -281,7 +282,7 @@ def detail(matching_id) -> Optional[dict]:
         "id", "titre", "organisme", "source_id", "deadline", "permanent", "montant",
         "url_source", "lien_officiel", "zone_categorie", "zone_geographique", "expire",
         "description", "public_cible", "criteres_eligibilite", "secteurs",
-        "lien_candidature", "type_beneficiaire", "langue")}
+        "lien_candidature", "type_beneficiaire", "langue", "nature")}
     return m
 
 

@@ -74,6 +74,19 @@ class Subside(BaseModel):
 
     zone_geographique: Optional[str] = None
     type_beneficiaire: list[str] = Field(default_factory=list)
+    # Lot 9 : nature du soutien (pilote les traitements UI par nature).
+    nature: Optional[str] = None
+
+    @field_validator("nature", mode="before")
+    @classmethod
+    def _nature_valide(cls, v):
+        """Ne garde qu'une valeur de l'énumération ; tout le reste -> None."""
+        autorises = {"appel_a_projets", "dispositif_permanent",
+                     "prix_concours", "financement_instrument"}
+        if not v:
+            return None
+        v = str(v).strip().lower()
+        return v if v in autorises else None
 
     @field_validator("criteres_eligibilite", "secteurs", mode="before")
     @classmethod

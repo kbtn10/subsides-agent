@@ -376,6 +376,9 @@ def _migrer_colonnes(conn):
         "text_hash": "TEXT",
         # Lot 5 : URLs des règlements PDF réellement exploités pour cette fiche.
         "annexes_pdf": "TEXT DEFAULT '[]'",   # JSON [{url, ancre, caracteres}]
+        # Lot 9 : nature du soutien (appel_a_projets|dispositif_permanent|
+        # prix_concours|financement_instrument|NULL). Pilote les traitements UI.
+        "nature": "TEXT",
     }
     for nom, decl in ajouts.items():
         if nom not in existantes:
@@ -518,18 +521,19 @@ def upsert_subside(donnees: dict, source_id: str, *, raw_text=None,
                  url_source, source_id, titre, organisme, description, montant,
                  deadline, permanent, public_cible, criteres_eligibilite, secteurs,
                  lien_candidature, langue, zone_geographique, zone_categorie,
-                 type_beneficiaire, statut, a_verifier, erreurs_validation,
+                 type_beneficiaire, nature, statut, a_verifier, erreurs_validation,
                  modifications, text_hash, raw_text, annexes_pdf, premiere_detection,
                  derniere_verification)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 url, source_id, donnees.get("titre"), donnees.get("organisme"),
                 donnees.get("description"), donnees.get("montant"), donnees.get("deadline"),
                 int(bool(donnees.get("permanent"))), donnees.get("public_cible"),
                 _dumps(donnees.get("criteres_eligibilite")), _dumps(donnees.get("secteurs")),
                 donnees.get("lien_candidature"), donnees.get("langue"), zone_geo, zone_cat,
-                type_benef, statut, int(bool(a_verifier)), _dumps(erreurs), None,
-                text_hash, raw_text, annexes or "[]", maintenant, maintenant,
+                type_benef, donnees.get("nature"), statut, int(bool(a_verifier)),
+                _dumps(erreurs), None, text_hash, raw_text, annexes or "[]",
+                maintenant, maintenant,
             ),
         )
         conn.commit()
@@ -554,10 +558,11 @@ def upsert_subside(donnees: dict, source_id: str, *, raw_text=None,
             """UPDATE subsides SET derniere_verification=?, statut='inchange',
                  a_verifier=?, erreurs_validation=?, text_hash=?,
                  zone_geographique=?, zone_categorie=?, type_beneficiaire=?,
+                 nature=COALESCE(?, nature),
                  annexes_pdf=COALESCE(?, annexes_pdf)
                WHERE url_source=?""",
             (maintenant, int(bool(a_verifier)), _dumps(erreurs), text_hash,
-             zone_geo, zone_cat, type_benef, annexes, url),
+             zone_geo, zone_cat, type_benef, donnees.get("nature"), annexes, url),
         )
         conn.commit()
         return "inchange"
@@ -567,6 +572,7 @@ def upsert_subside(donnees: dict, source_id: str, *, raw_text=None,
              titre=?, organisme=?, description=?, montant=?, deadline=?, permanent=?,
              public_cible=?, criteres_eligibilite=?, secteurs=?, lien_candidature=?,
              langue=?, zone_geographique=?, zone_categorie=?, type_beneficiaire=?,
+             nature=COALESCE(?, nature),
              statut='modifie', a_verifier=?, erreurs_validation=?, modifications=?,
              text_hash=?, raw_text=?, annexes_pdf=COALESCE(?, annexes_pdf),
              derniere_verification=?
@@ -577,7 +583,7 @@ def upsert_subside(donnees: dict, source_id: str, *, raw_text=None,
             int(bool(donnees.get("permanent"))), donnees.get("public_cible"),
             _dumps(donnees.get("criteres_eligibilite")), _dumps(donnees.get("secteurs")),
             donnees.get("lien_candidature"), donnees.get("langue"), zone_geo, zone_cat,
-            type_benef, int(bool(a_verifier)), _dumps(erreurs),
+            type_benef, donnees.get("nature"), int(bool(a_verifier)), _dumps(erreurs),
             json.dumps(mods, ensure_ascii=False), text_hash, raw_text, annexes,
             maintenant, url,
         ),
@@ -606,6 +612,7 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
     d.setdefault("zone_categorie", "inconnue")
     d.setdefault("zone_geographique", None)
     d.setdefault("type_beneficiaire", [])
+    d.setdefault("nature", None)
     # 'expire' est CALCULÉ, jamais stocké (spec 0.1) : une deadline passée le
     # devient toute seule au fil du temps, sans re-scrape.
     dl = d.get("deadline")

@@ -22,6 +22,7 @@ Règles absolues :
   - `eligible_sous_conditions` : pas de blocage, mais des points restent à vérifier (criteres_a_verifier non vide).
   - `non_eligible` : au moins un critère rédhibitoire explicitement non satisfait.
 - `pertinence` évalue l'ADÉQUATION THÉMATIQUE (secteurs, publics cibles, description libre du profil) INDÉPENDAMMENT de l'éligibilité : `forte` / `moyenne` / `faible`. Un subside peut être éligible mais peu pertinent (hors thématique), ou très pertinent mais non éligible.
+- Tiens compte de la NATURE du soutien dans la pertinence : un `financement_instrument` (prêt, garantie, avance récupérable, prise de participation) suppose une capacité d'emprunt et de remboursement — pour une petite ASBL sans cette capacité, la pertinence est plutôt `faible`, et dis-le dans la justification. Un `dispositif_permanent` reste pertinent mais se demande en continu (pas d'échéance).
 - `criteres_satisfaits`, `criteres_a_verifier`, `criteres_non_satisfaits` : listes de chaînes courtes, chaque entrée = un critère + une justification brève.
 - Liste AU MAXIMUM 4 `criteres_a_verifier`, en ne retenant que les critères d'éligibilité substantiels et déterminants. Omets les pièces administratives génériques du dossier (statuts, comptes annuels, formulaires, budget prévisionnel…) : elles relèvent de la constitution du dossier, pas de l'éligibilité.
 - `pieces_dossier` : les pièces administratives génériques à fournir au dossier que tu as écartées de `criteres_a_verifier` (statuts, comptes, formulaire de candidature…), si la fiche les mentionne. Liste vide sinon.
@@ -73,6 +74,7 @@ def message_utilisateur(profil: dict, subside: dict) -> str:
 - Montant : {subside.get('montant') or '(non précisé)'}
 - Deadline : {subside.get('deadline') or ('permanent' if subside.get('permanent') else '(non précisé)')}
 - Public cible (fiche) : {subside.get('public_cible') or '(non précisé)'}
+- Nature du soutien : {subside.get('nature') or '(non précisé)'}
 - Types de bénéficiaires : {liste(subside.get('type_beneficiaire'))}
 - Zone géographique : {subside.get('zone_geographique') or '(non précisé)'}
 - Secteurs (fiche) : {liste(subside.get('secteurs'))}

@@ -295,3 +295,42 @@ def test_type_beneficiaire_string_devient_liste():
 def test_type_beneficiaire_casse_normalisee():
     r = valider(fiche(type_beneficiaire=["ASBL", "Entreprise"]), URL, AUJOURDHUI)
     assert r.subside["type_beneficiaire"] == ["asbl", "entreprise"]
+
+
+# --- Nature du soutien (lot 9) ---------------------------------------------
+
+@pytest.mark.parametrize("valeur", [
+    "appel_a_projets", "dispositif_permanent", "prix_concours", "financement_instrument",
+])
+def test_nature_valide_conservee(valeur):
+    r = valider(fiche(nature=valeur), URL, AUJOURDHUI)
+    assert r.ok and r.subside["nature"] == valeur
+
+
+@pytest.mark.parametrize("valeur", [None, "", "autre_chose", "subvention", "APPEL"])
+def test_nature_invalide_ou_absente_vers_none(valeur):
+    # "APPEL" n'est pas dans l'énum → None ; None/""/valeur libre → None.
+    r = valider(fiche(nature=valeur), URL, AUJOURDHUI)
+    assert r.ok and r.subside["nature"] is None
+
+
+def test_nature_casse_normalisee():
+    r = valider(fiche(nature="Dispositif_Permanent"), URL, AUJOURDHUI)
+    assert r.ok and r.subside["nature"] == "dispositif_permanent"
+
+
+def test_nature_absente_du_json_vaut_none():
+    f = fiche()
+    f.pop("nature", None)  # une fiche sans le champ (fiche d'avant le lot 9)
+    r = valider(f, URL, AUJOURDHUI)
+    assert r.ok and r.subside["nature"] is None
+
+
+def test_schema_extraction_inclut_nature():
+    from scraper.extractor import SCHEMA_SUBSIDE, SYSTEM_PROMPT
+    assert "nature" in SCHEMA_SUBSIDE["properties"]
+    assert "nature" in SCHEMA_SUBSIDE["required"]
+    enum = SCHEMA_SUBSIDE["properties"]["nature"]["enum"]
+    assert {"appel_a_projets", "dispositif_permanent", "prix_concours",
+            "financement_instrument"} <= set(enum)
+    assert "nature" in SYSTEM_PROMPT  # la consigne est bien passée au modèle

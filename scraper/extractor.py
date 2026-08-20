@@ -113,11 +113,25 @@ SCHEMA_SUBSIDE = {
                 "null si le texte ne précise pas. N'infère pas."
             ),
         },
+        "nature": {
+            "type": ["string", "null"],
+            "enum": ["appel_a_projets", "dispositif_permanent", "prix_concours",
+                     "financement_instrument", None],
+            "description": (
+                "Nature du soutien telle qu'elle ressort du texte : "
+                "appel_a_projets si candidature datée avec procédure ; "
+                "prix_concours si prix/concours/bourse avec jury ; "
+                "dispositif_permanent si aide/agrément/subvention accessible en "
+                "continu sur demande ; financement_instrument si prêt, garantie, "
+                "prise de participation (pas un subside à proprement parler). "
+                "null si indéterminable."
+            ),
+        },
     },
     "required": [
         "titre", "organisme", "description", "montant", "deadline", "permanent",
         "public_cible", "criteres_eligibilite", "secteurs", "lien_candidature",
-        "langue", "zone_geographique", "type_beneficiaire",
+        "langue", "zone_geographique", "type_beneficiaire", "nature",
     ],
     "additionalProperties": False,
 }
@@ -133,6 +147,7 @@ Règles absolues :
 - `permanent` = true uniquement si le texte dit que le dispositif est ouvert en continu.
 - `zone_geographique` : uniquement si le texte mentionne explicitement une zone d'éligibilité. Ne la déduis pas du nom de l'organisme ni de la langue de la page.
 - `type_beneficiaire` : uniquement les types explicitement visés par le texte. null si non précisé. N'infère pas (ne déduis pas "asbl" du simple fait que l'organisme subventionne habituellement des ASBL).
+- `nature` : la nature du soutien telle qu'elle ressort du texte. appel_a_projets = candidature datée avec procédure ; prix_concours = prix/concours/bourse jugé par un jury ; dispositif_permanent = aide/agrément/subvention accessible en continu, sur simple demande, sans appel formel ; financement_instrument = prêt, garantie, avance récupérable, prise de participation (ce n'est pas un subside). null si le texte ne permet pas de trancher.
 
 Tu réponds uniquement par le JSON demandé."""
 
