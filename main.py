@@ -425,6 +425,9 @@ async def matching_detail(matching_id: int, user: dict | None = Depends(utilisat
     # Récurrence annuelle (lot 7) : « cet appel semble récurrent (édition X) ».
     if m.get("subside"):
         m["recurrence"] = cand_mod.detecter_recurrence(m["subside"])
+        # Mémoire (lot 10C) : proposer de repartir du dossier de l'édition
+        # précédente, si le profil y avait candidaté.
+        m["memoire"] = cand_mod.memoire_pour(m["profil_id"], m["subside"])
     return m
 
 
@@ -459,6 +462,26 @@ async def creer_candidature(body: dict = Body(...),
     if db.get_subside(subside_id) is None:
         raise HTTPException(status_code=404, detail="subside inconnu")
     return cand_mod.creer_candidature(profil_id, subside_id, body.get("matching_id"))
+
+
+@app.post("/candidatures/repartir")
+async def repartir_dossier(body: dict = Body(...),
+                           user: dict | None = Depends(utilisateur_optionnel)):
+    """Mémoire (lot 10C) : ouvre une candidature sur la nouvelle édition,
+    pré-remplie depuis l'ancienne (jamais la checklist)."""
+    profil_id = body.get("profil_id")
+    subside_id = body.get("subside_id")
+    ancienne = body.get("ancienne_candidature_id")
+    if not profil_id or not subside_id or not ancienne:
+        raise HTTPException(status_code=422,
+                            detail="profil_id, subside_id et ancienne_candidature_id requis")
+    _verifier_proprietaire(user, profil_id)
+    if db.get_subside(subside_id) is None:
+        raise HTTPException(status_code=404, detail="subside inconnu")
+    c = cand_mod.repartir_de(profil_id, subside_id, ancienne, body.get("matching_id"))
+    if c is None:
+        raise HTTPException(status_code=404, detail="dossier précédent introuvable")
+    return c
 
 
 @app.get("/candidatures/{profil_id}")

@@ -128,9 +128,20 @@ export interface SubsideDetail extends SubsideResume {
   langue: string | null;
 }
 
+export interface Memoire {
+  ancienne_candidature_id: number;
+  annee: string | null;
+  annee_courante: string | null;
+  frere_titre: string;
+  montant_demande: number | null;
+  statut: StatutCandidature;
+  a_notes: boolean;
+}
+
 export interface MatchingDetail extends Omit<Matching, "subside"> {
   subside: SubsideDetail;
   recurrence?: Recurrence | null;   // lot 7 : appel annuel récurrent détecté
+  memoire?: Memoire | null;         // lot 10C : dossier de l'édition précédente
   profil_type?: TypeProfil;         // lot 8.1 : masque « Préparer » sur une recherche
 }
 

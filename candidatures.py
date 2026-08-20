@@ -124,6 +124,12 @@ def get_candidature(candidature_id: int) -> Optional[dict]:
         "SELECT * FROM candidatures WHERE id = ?", (candidature_id,)).fetchone())
 
 
+def get_candidature_couple(profil_id: int, subside_id: int) -> Optional[dict]:
+    return _row(db.connect().execute(
+        "SELECT * FROM candidatures WHERE profil_id = ? AND subside_id = ?",
+        (profil_id, subside_id)).fetchone())
+
+
 def get_candidature_enrichie(candidature_id: int) -> Optional[dict]:
     """Candidature + fiche subside embarquée (pour l'espace candidature)."""
     c = get_candidature(candidature_id)
@@ -195,6 +201,54 @@ def supprimer_candidature(candidature_id: int) -> bool:
     cur = conn.execute("DELETE FROM candidatures WHERE id = ?", (candidature_id,))
     conn.commit()
     return cur.rowcount > 0
+
+
+# --- Mémoire des dossiers (lot 10C) ----------------------------------------
+
+def memoire_pour(profil_id: int, subside: dict) -> Optional[dict]:
+    """Si cet appel est récurrent ET que le profil a candidaté à l'édition
+    PRÉCÉDENTE, renvoie de quoi « repartir de ce dossier ». None sinon —
+    l'encart mémoire ne s'affiche donc jamais sans dossier antérieur réel."""
+    rec = detecter_recurrence(subside)
+    if not rec:
+        return None
+    ancienne = get_candidature_couple(profil_id, rec["frere_id"])
+    if not ancienne:
+        return None
+    return {
+        "ancienne_candidature_id": ancienne["id"],
+        "annee": rec["annee"],
+        "annee_courante": rec["annee_courante"],
+        "frere_titre": rec["frere_titre"],
+        "montant_demande": ancienne.get("montant_demande"),
+        "statut": ancienne["statut"],
+        "a_notes": bool((ancienne.get("notes") or "").strip()),
+    }
+
+
+def repartir_de(profil_id: int, nouveau_subside_id: int,
+                ancienne_candidature_id: int, matching_id: Optional[int] = None) -> Optional[dict]:
+    """Ouvre une candidature sur la NOUVELLE édition, pré-remplie depuis
+    l'ancienne (montant demandé + notes) — JAMAIS la checklist (propre à la
+    fiche, et le règlement peut avoir changé). Idempotent."""
+    ancienne = get_candidature(ancienne_candidature_id)
+    # Cloisonnement : l'ancienne doit appartenir au même profil.
+    if ancienne is None or ancienne["profil_id"] != profil_id:
+        return None
+    nouvelle = creer_candidature(profil_id, nouveau_subside_id, matching_id)
+    # Ne pré-remplit que si la nouvelle est vierge (idempotence : pas d'écrasement).
+    vierge = (nouvelle["statut"] == "a_etudier" and not nouvelle.get("montant_demande")
+              and not (nouvelle.get("notes") or "").strip())
+    if vierge:
+        vieux_sub = db.get_subside(ancienne["subside_id"])
+        annee = _annee((vieux_sub or {}).get("titre"), (vieux_sub or {}).get("deadline"))
+        entete = f"Repris de votre dossier {annee}." if annee else "Repris de votre dossier précédent."
+        note_ancienne = (ancienne.get("notes") or "").strip()
+        patch = {"notes": entete + ("\n\n" + note_ancienne if note_ancienne else "")}
+        if ancienne.get("montant_demande"):
+            patch["montant_demande"] = ancienne["montant_demande"]
+        maj_candidature(nouvelle["id"], patch)
+    return get_candidature(nouvelle["id"])
 
 
 # --- Statistiques -----------------------------------------------------------

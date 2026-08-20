@@ -7,7 +7,7 @@ import { useAuth } from "@clerk/nextjs";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   AlertTriangle, ArrowLeft, ArrowUpRight, Bookmark, Check, ClipboardList, FileText,
-  History, Loader2, Minus,
+  History, Loader2, Minus, RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BadgeEcheance, pastille } from "@/components/compact-card";
@@ -67,6 +67,21 @@ export default function SubsideDetailPage() {
     try {
       const c = await api.creerCandidature(
         { profil_id: m.profil_id, subside_id: m.subside.id, matching_id: m.id }, getToken);
+      router.push(`/candidature/${c.id}`);
+    } catch {
+      setPrepare(false);
+    }
+  };
+
+  // Mémoire (lot 10C) : repartir du dossier de l'édition précédente.
+  const repartir = async () => {
+    if (!m || !m.memoire) return;
+    setPrepare(true);
+    try {
+      const c = await api.repartirDossier({
+        profil_id: m.profil_id, subside_id: m.subside.id,
+        ancienne_candidature_id: m.memoire.ancienne_candidature_id, matching_id: m.id,
+      }, getToken);
       router.push(`/candidature/${c.id}`);
     } catch {
       setPrepare(false);
@@ -152,6 +167,25 @@ export default function SubsideDetailPage() {
             Cet appel semble récurrent — une édition {m.recurrence.annee} a été détectée
             les années précédentes.
           </p>
+        )}
+
+        {/* Mémoire (lot 10C) : vous aviez candidaté à l'édition précédente. */}
+        {m.memoire && m.profil_type !== "recherche" && (
+          <div className="mt-3 rounded-[var(--radius-card)] border border-accent/25 bg-accent-soft/50 p-4">
+            <p className="flex items-center gap-2 font-medium text-ink">
+              <History className="h-4 w-4 shrink-0 text-accent" aria-hidden />
+              Vous aviez candidaté à l&apos;édition {m.memoire.annee ?? "précédente"}
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+              Repartez de ce dossier : Subsidia reprend votre montant demandé et vos notes.
+              La checklist des pièces, elle, sera régénérée depuis le règlement à jour —
+              jamais recopiée.
+            </p>
+            <Button className="mt-3" size="sm" onClick={repartir} disabled={prepare}>
+              {prepare ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+              Repartir de ce dossier
+            </Button>
+          </div>
         )}
 
         {/* Le pont vers l'étage 3 : préparer sa candidature (jamais soumettre).

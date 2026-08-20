@@ -136,6 +136,12 @@ export const api = {
                      getToken?: GetToken) =>
     req<Candidature>("/candidatures", { method: "POST", body, getToken }),
 
+  // Mémoire (lot 10C) : repartir du dossier de l'édition précédente.
+  repartirDossier: (body: { profil_id: number; subside_id: number;
+                            ancienne_candidature_id: number; matching_id?: number },
+                    getToken?: GetToken) =>
+    req<Candidature>("/candidatures/repartir", { method: "POST", body, getToken }),
+
   candidatures: (profilId: number, getToken?: GetToken) =>
     req<{ candidatures: Candidature[]; stats: CandidatureStats }>(
       `/candidatures/${profilId}`, { getToken }),
